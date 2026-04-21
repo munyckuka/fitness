@@ -1,9 +1,6 @@
 import { Platform } from "react-native";
 
-const DEFAULT_API_ORIGIN = Platform.select({
-  android: "http://10.0.2.2:8080",
-  default: "http://localhost:8080",
-});
+const DEFAULT_API_ORIGIN = "https://fitness-uinz.onrender.com";
 
 function normalizeBaseUrl(rawUrl: string) {
   return rawUrl.replace(/\/+$/, "");
@@ -27,7 +24,7 @@ type RequestOptions = RequestInit & {
 
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const controller = new AbortController();
-  const timeoutMs = options.timeoutMs ?? 15000;
+  const timeoutMs = options.timeoutMs ?? 30000;
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   try {

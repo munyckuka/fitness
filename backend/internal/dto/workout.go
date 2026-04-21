@@ -1,11 +1,11 @@
 package dto
 
 type GenerateWorkoutRequest struct {
-	UserID string `json:"userId" binding:"required"`
+	UserID string `json:"userId"`
 }
 
 type CompleteWorkoutRequest struct {
-	UserID     string               `json:"userId" binding:"required"`
+	UserID     string               `json:"userId"`
 	WorkoutID  string               `json:"workoutId" binding:"required"`
 	Difficulty int                  `json:"difficulty"`
 	Exercises  []ExerciseLogRequest `json:"exercises"`

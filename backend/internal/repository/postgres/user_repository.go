@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"backend/internal/domain"
+	"backend/internal/repository"
 	"context"
 	"database/sql"
 	"errors"
@@ -29,9 +30,9 @@ func (r *UserRepository) Create(ctx context.Context, user domain.User) (domain.U
 	}
 
 	_, err = tx.ExecContext(ctx, `
-		INSERT INTO users (id, age, height, weight, goal, level, frequency)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
-	`, user.ID, user.Age, user.Height, user.Weight, string(user.FitnessGoal), user.FitnessLevel, user.Frequency)
+		INSERT INTO users (id, name, login, age, height, weight, goal, level, frequency)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+	`, user.ID, user.Name, user.Login, user.Age, user.Height, user.Weight, string(user.FitnessGoal), user.FitnessLevel, user.Frequency)
 	if err != nil {
 		tx.Rollback()
 		return domain.User{}, err
@@ -57,14 +58,16 @@ func (r *UserRepository) Update(ctx context.Context, user domain.User) (domain.U
 
 	result, err := tx.ExecContext(ctx, `
 		UPDATE users
-		SET age = $1,
-		    height = $2,
-		    weight = $3,
-		    goal = $4,
-		    level = $5,
-		    frequency = $6
-		WHERE id = $7
-	`, user.Age, user.Height, user.Weight, string(user.FitnessGoal), user.FitnessLevel, user.Frequency, user.ID)
+		SET name = $1,
+		    login = $2,
+		    age = $3,
+		    height = $4,
+		    weight = $5,
+		    goal = $6,
+		    level = $7,
+		    frequency = $8
+		WHERE id = $9
+	`, user.Name, user.Login, user.Age, user.Height, user.Weight, string(user.FitnessGoal), user.FitnessLevel, user.Frequency, user.ID)
 	if err != nil {
 		tx.Rollback()
 		return domain.User{}, err
@@ -77,7 +80,7 @@ func (r *UserRepository) Update(ctx context.Context, user domain.User) (domain.U
 	}
 	if rowsAffected == 0 {
 		tx.Rollback()
-		return domain.User{}, fmt.Errorf("user not found")
+		return domain.User{}, repository.ErrUserNotFound
 	}
 
 	if err := upsertUserEquipment(ctx, tx, user.ID, user.Equipment); err != nil {
@@ -94,7 +97,7 @@ func (r *UserRepository) Update(ctx context.Context, user domain.User) (domain.U
 
 func (r *UserRepository) GetByID(ctx context.Context, id string) (domain.User, error) {
 	query := `
-    SELECT id, age, height, weight, goal, level, frequency
+	SELECT id, name, login, age, height, weight, goal, level, frequency
     FROM users
     WHERE id = $1
     `
@@ -108,16 +111,44 @@ func (r *UserRepository) GetByID(ctx context.Context, id string) (domain.User, e
 	var goalStr string
 
 	err = r.db.QueryRowContext(ctx, query, parsedUuid.String()).
-		Scan(&user.ID, &user.Age, &user.Height, &user.Weight, &goalStr, &user.FitnessLevel, &user.Frequency)
+		Scan(&user.ID, &user.Name, &user.Login, &user.Age, &user.Height, &user.Weight, &goalStr, &user.FitnessLevel, &user.Frequency)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return domain.User{}, fmt.Errorf("user not found")
+			return domain.User{}, repository.ErrUserNotFound
 		}
 		return domain.User{}, err
 	}
 
 	user.FitnessGoal = domain.Goal(goalStr)
 	user.Equipment, err = r.getUserEquipment(ctx, parsedUuid)
+	if err != nil {
+		return domain.User{}, err
+	}
+
+	return user, nil
+}
+
+func (r *UserRepository) GetByLogin(ctx context.Context, login string) (domain.User, error) {
+	query := `
+	SELECT id, name, login, age, height, weight, goal, level, frequency
+	FROM users
+	WHERE LOWER(login) = LOWER($1)
+	`
+
+	var user domain.User
+	var goalStr string
+
+	err := r.db.QueryRowContext(ctx, query, login).
+		Scan(&user.ID, &user.Name, &user.Login, &user.Age, &user.Height, &user.Weight, &goalStr, &user.FitnessLevel, &user.Frequency)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return domain.User{}, repository.ErrUserNotFound
+		}
+		return domain.User{}, err
+	}
+
+	user.FitnessGoal = domain.Goal(goalStr)
+	user.Equipment, err = r.getUserEquipment(ctx, user.ID)
 	if err != nil {
 		return domain.User{}, err
 	}

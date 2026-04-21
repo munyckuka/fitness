@@ -98,6 +98,10 @@ export default function Profile() {
               </TouchableOpacity>
             </View>
 
+            <Text style={{ color: colors.textSecondary, fontSize: 14, lineHeight: 20, marginBottom: 6 }}>
+              {user?.login ? `@${user.login}` : "@login"}
+            </Text>
+
             <Text style={{ color: colors.textSecondary, fontSize: 18, lineHeight: 24, fontWeight: "400" }}>
               {user?.gender ?? "Пол не указан"}{user?.age ? ` ${user.age} лет` : ""}
             </Text>

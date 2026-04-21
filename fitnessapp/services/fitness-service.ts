@@ -1,4 +1,5 @@
 import { apiRequest } from "@/services/api";
+import { ensureAccessToken, refreshAccessToken } from "@/services/auth-service";
 
 export type WorkoutExercise = {
   id: string;
@@ -24,6 +25,7 @@ export type WorkoutSummary = {
 export type UserProfile = {
   id: string;
   name: string;
+  login?: string;
   gender?: string;
   goal: string;
   experience: string;
@@ -110,10 +112,14 @@ export async function updateUser(userId: string, input: UpdateUserInput) {
 }
 
 export async function generateWorkout(userId: string, user?: Pick<UserProfile, "goal" | "experience" | "equipment">) {
-  const payload = await apiRequest<BackendWorkout>("/workouts/generate", {
-    method: "POST",
-    body: JSON.stringify({ userId }),
-  });
+  const payload = await requestWithAuth<BackendWorkout>(
+    "/workouts/generate",
+    {
+      method: "POST",
+      body: JSON.stringify({}),
+    },
+    userId,
+  );
 
   return normalizeWorkout(payload, user);
 }
@@ -131,10 +137,18 @@ export async function completeWorkout(input: {
   difficulty: number;
   exercises: CompleteWorkoutExerciseInput[];
 }) {
-  return apiRequest<unknown>("/workouts/complete", {
-    method: "POST",
-    body: JSON.stringify(input),
-  });
+  return requestWithAuth<unknown>(
+    "/workouts/complete",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        workoutId: input.workoutId,
+        difficulty: input.difficulty,
+        exercises: input.exercises,
+      }),
+    },
+    input.userId,
+  );
 }
 
 export async function getProgress(userId: string) {
@@ -143,10 +157,12 @@ export async function getProgress(userId: string) {
 }
 function normalizeUser(payload: BackendUser): UserProfile {
   const equipment = Array.isArray(payload.equipment) ? payload.equipment : [];
+  const normalizedName = typeof payload.name === "string" && payload.name.trim().length > 0 ? payload.name.trim() : "Пользователь";
 
   return {
     id: payload.id,
-    name: "Пользователь",
+    name: normalizedName,
+    login: payload.login,
     goal: localizeGoal(payload.fitnessGoal),
     experience: localizeLevel(payload.fitnessLevel),
     equipment: equipment.map(localizeEquipment).join(", "),
@@ -198,6 +214,8 @@ function normalizeProgress(payload: BackendProgress): ProgressData {
 
 type BackendUser = {
   id: string;
+  name?: string;
+  login?: string;
   age: number;
   height: number;
   weight: number;
@@ -230,6 +248,33 @@ type BackendProgress = {
   workoutDates: string[];
   weightHistory: Array<{ label: string; value: number }>;
 };
+
+async function requestWithAuth<T>(path: string, options: RequestInit, legacyUserIdForLogin?: string) {
+  const accessToken = await ensureAccessToken(legacyUserIdForLogin);
+
+  try {
+    return await apiRequest<T>(path, {
+      ...options,
+      headers: {
+        ...(options.headers ?? {}),
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+  } catch (error) {
+    const refreshedAccessToken = await refreshAccessToken();
+    if (!refreshedAccessToken) {
+      throw error;
+    }
+
+    return apiRequest<T>(path, {
+      ...options,
+      headers: {
+        ...(options.headers ?? {}),
+        Authorization: `Bearer ${refreshedAccessToken}`,
+      },
+    });
+  }
+}
 
 function buildWorkoutTitle(goal?: string) {
   switch (goal) {

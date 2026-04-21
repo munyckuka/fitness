@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { ActivityIndicator, SafeAreaView, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { createUser, generateWorkout, getUser, updateUser, type UserProfile } from "@/services/fitness-service";
+import { generateWorkout, getUser, updateUser, type UserProfile } from "@/services/fitness-service";
+import { mapEquipmentToBackend as mapEquipmentToBackendAuth, mapGoalToBackend as mapGoalToBackendAuth, mapLevelToBackend as mapLevelToBackendAuth, registerWithProfile } from "@/services/auth-service";
 import { CURRENT_WORKOUT_ID_KEY, IS_REGISTERED_KEY, USER_ID_KEY } from "@/services/storage";
 import { colors } from "./theme";
 
@@ -313,6 +314,7 @@ function Step5Frequency({ data, onUpdate }: { data: WorkoutData; onUpdate: (data
 
 export default function CreateWorkout() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ name?: string; login?: string; email?: string; password?: string }>();
   const [step, setStep] = useState(0);
   const [data, setData] = useState<WorkoutData>({});
   const [isPreparingFlow, setIsPreparingFlow] = useState(true);
@@ -391,6 +393,11 @@ export default function CreateWorkout() {
 
   const isLastStep = step === steps.length - 1;
 
+  const registrationName = typeof params.name === "string" ? params.name.trim() : "";
+  const registrationLogin = typeof params.login === "string" ? params.login.trim().toLowerCase() : "";
+  const registrationEmail = typeof params.email === "string" ? params.email.trim().toLowerCase() : "";
+  const registrationPassword = typeof params.password === "string" ? params.password : "";
+
   const handleContinue = async () => {
     setSubmitError(null);
 
@@ -459,8 +466,30 @@ export default function CreateWorkout() {
     setIsSubmitting(true);
 
     try {
-      const payload = buildProfilePayload(data);
-      const user = await createUser(payload);
+      if (!registrationName || !registrationLogin || !registrationEmail || !registrationPassword) {
+        throw new Error("Сначала введите имя, логин, почту и пароль на экране регистрации.");
+      }
+
+      const authResponse = await registerWithProfile({
+        name: registrationName,
+        login: registrationLogin,
+        email: registrationEmail,
+        password: registrationPassword,
+        goal: mapGoalToBackendAuth(data.goal),
+        experience: mapLevelToBackendAuth(data.experience),
+        frequency: toNumber(data.frequency) ?? 3,
+        equipment: [mapEquipmentToBackendAuth(data.equipment)],
+        age: toNumber(data.age),
+        height: toNumber(data.height),
+        weight: toNumber(data.weight),
+      });
+
+      const user = {
+        id: authResponse.user.id,
+        goal: data.goal ?? "Персональный план",
+        experience: data.experience ?? "Новичок",
+        equipment: data.equipment ?? "Домашний",
+      };
 
       if (!user.id) {
         throw new Error("Сервер не вернул идентификатор пользователя.");

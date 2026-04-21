@@ -3,6 +3,7 @@ import { useRouter } from "expo-router";
 import { useState } from "react";
 import { ActivityIndicator, SafeAreaView, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { getUser, getUserWorkouts, generateWorkout } from "@/services/fitness-service";
+import { loginWithIdentifier } from "@/services/auth-service";
 import { ApiError } from "@/services/api";
 import { CURRENT_WORKOUT_ID_KEY, IS_REGISTERED_KEY, USER_ID_KEY } from "@/services/storage";
 import { colors } from "./theme";
@@ -10,19 +11,63 @@ import { colors } from "./theme";
 export default function Register() {
   const router = useRouter();
   const [mode, setMode] = useState<"login" | "register">("login");
-  const [userId, setUserId] = useState("");
+  const [identifier, setIdentifier] = useState("");
+  const [password, setPassword] = useState("");
+  const [registerName, setRegisterName] = useState("");
+  const [registerLogin, setRegisterLogin] = useState("");
+  const [registerEmail, setRegisterEmail] = useState("");
+  const [registerPassword, setRegisterPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const handleRegistrationStart = async () => {
-    router.push("/create-workout");
+    const name = registerName.trim();
+    const login = registerLogin.trim().toLowerCase();
+    const email = registerEmail.trim().toLowerCase();
+    const pwd = registerPassword.trim();
+
+    if (!name) {
+      setSubmitError("Введите имя.");
+      return;
+    }
+
+    if (!email.includes("@")) {
+      setSubmitError("Введите корректную почту.");
+      return;
+    }
+
+    if (!login || login.length < 3) {
+      setSubmitError("Введите логин не короче 3 символов.");
+      return;
+    }
+
+    if (pwd.length < 8) {
+      setSubmitError("Пароль должен быть не короче 8 символов.");
+      return;
+    }
+
+    router.push({
+      pathname: "/create-workout",
+      params: {
+        name,
+        login,
+        email,
+        password: pwd,
+      },
+    });
   };
 
   const handleLogin = async () => {
-    const normalizedUserId = userId.trim();
+    const normalizedIdentifier = identifier.trim();
+    const normalizedPassword = password.trim();
 
-    if (!normalizedUserId) {
-      setSubmitError("Введите ваш ID пользователя.");
+    if (!normalizedIdentifier) {
+      setSubmitError("Введите email или user id.");
+      return;
+    }
+
+    if (!normalizedPassword) {
+      setSubmitError("Введите пароль.");
       return;
     }
 
@@ -30,12 +75,13 @@ export default function Register() {
     setSubmitError(null);
 
     try {
-      const user = await getUser(normalizedUserId);
-      const workouts = await getUserWorkouts(normalizedUserId);
+      const authPayload = await loginWithIdentifier(normalizedIdentifier, normalizedPassword);
+      const user = await getUser(authPayload.user.id);
+      const workouts = await getUserWorkouts(authPayload.user.id);
       let activeWorkoutId = workouts[0]?.id;
 
       if (!activeWorkoutId) {
-        const generatedWorkout = await generateWorkout(normalizedUserId, {
+        const generatedWorkout = await generateWorkout(authPayload.user.id, {
           goal: user.goal,
           experience: user.experience,
           equipment: user.equipment,
@@ -67,22 +113,11 @@ export default function Register() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 24 }}>
+      <View style={{ flex: 1, justifyContent: "flex-start", alignItems: "center", paddingHorizontal: 24, paddingTop: 60 }}>
         <Text style={{ color: colors.textPrimary, fontSize: 48, fontWeight: "500", textAlign: "center", marginBottom: 18 }}>
           Вход/Регистрация
         </Text>
 
-        <Text
-          style={{
-            color: colors.textSecondary,
-            fontSize: 16,
-            textAlign: "center",
-            lineHeight: 24,
-            marginBottom: 40,
-          }}
-        >
-          Продолжите, затем мы сохраним профиль и получим персональный план с сервера
-        </Text>
 
         <View style={{ width: "100%", flexDirection: "row", gap: 10, marginBottom: 20 }}>
           <TouchableOpacity
@@ -125,11 +160,31 @@ export default function Register() {
         {mode === "login" ? (
           <>
             <TextInput
-              value={userId}
-              onChangeText={setUserId}
+              value={identifier}
+              onChangeText={setIdentifier}
               autoCapitalize="none"
               autoCorrect={false}
-              placeholder="Введите user id"
+              placeholder="Почта или логин"
+              placeholderTextColor="#999"
+              style={{
+                width: "100%",
+                height: 52,
+                borderRadius: 14,
+                backgroundColor: "#FFFFFF",
+                paddingHorizontal: 14,
+                color: "#000000",
+                fontSize: 16,
+                marginBottom: 14,
+              }}
+            />
+
+            <TextInput
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              autoCapitalize="none"
+              autoCorrect={false}
+              placeholder="Пароль (для legacy можно оставить пустым)"
               placeholderTextColor="#999"
               style={{
                 width: "100%",
@@ -165,20 +220,100 @@ export default function Register() {
             </TouchableOpacity>
           </>
         ) : (
-        <TouchableOpacity
-          activeOpacity={0.85}
-          onPress={handleRegistrationStart}
-          style={{
-            width: "100%",
-            height: 56,
-            borderRadius: 16,
-            backgroundColor: "#FFFFFF",
-            justifyContent: "center",
-            alignItems: "center",
-          }}
-        >
-          <Text style={{ color: "#000000", fontSize: 18, fontWeight: "500" }}>Создать профиль</Text>
-        </TouchableOpacity>
+          <>
+            <TextInput
+              value={registerName}
+              onChangeText={setRegisterName}
+              autoCapitalize="words"
+              autoCorrect={false}
+              placeholder="Имя"
+              placeholderTextColor="#999"
+              style={{
+                width: "100%",
+                height: 52,
+                borderRadius: 14,
+                backgroundColor: "#FFFFFF",
+                paddingHorizontal: 14,
+                color: "#000000",
+                fontSize: 16,
+                marginBottom: 14,
+              }}
+            />
+
+            <TextInput
+              value={registerEmail}
+              onChangeText={setRegisterEmail}
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="email-address"
+              placeholder="Почта"
+              placeholderTextColor="#999"
+              style={{
+                width: "100%",
+                height: 52,
+                borderRadius: 14,
+                backgroundColor: "#FFFFFF",
+                paddingHorizontal: 14,
+                color: "#000000",
+                fontSize: 16,
+                marginBottom: 14,
+              }}
+            />
+
+            <TextInput
+              value={registerLogin}
+              onChangeText={setRegisterLogin}
+              autoCapitalize="none"
+              autoCorrect={false}
+              placeholder="Логин"
+              placeholderTextColor="#999"
+              style={{
+                width: "100%",
+                height: 52,
+                borderRadius: 14,
+                backgroundColor: "#FFFFFF",
+                paddingHorizontal: 14,
+                color: "#000000",
+                fontSize: 16,
+                marginBottom: 14,
+              }}
+            />
+
+            <TextInput
+              value={registerPassword}
+              onChangeText={setRegisterPassword}
+              secureTextEntry
+              autoCapitalize="none"
+              autoCorrect={false}
+              placeholder="Пароль"
+              placeholderTextColor="#999"
+              style={{
+                width: "100%",
+                height: 52,
+                borderRadius: 14,
+                backgroundColor: "#FFFFFF",
+                paddingHorizontal: 14,
+                color: "#000000",
+                fontSize: 16,
+                marginBottom: 14,
+              }}
+            />
+
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={handleRegistrationStart}
+              style={{
+                width: "100%",
+                height: 56,
+                borderRadius: 16,
+                backgroundColor: "#FFFFFF",
+                justifyContent: "center",
+                alignItems: "center",
+              }}
+            >
+              <Text style={{ color: "#000000", fontSize: 18, fontWeight: "500" }}>Продолжить</Text>
+            </TouchableOpacity>
+          </>
         )}
 
         {submitError ? (
