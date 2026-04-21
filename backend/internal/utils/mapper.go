@@ -12,6 +12,7 @@ func MapUserToDTO(u domain.User) dto.UserResponse {
 	return dto.UserResponse{
 		ID:           u.ID.String(),
 		Name:         u.Name,
+		Login:        u.Login,
 		Age:          u.Age,
 		Height:       u.Height,
 		Weight:       u.Weight,
@@ -85,6 +86,7 @@ func MapUpdateUserDTOToDomain(req dto.UpdateUserRequest) domain.User {
 
 	return domain.User{
 		Name:         name,
+		Login:        req.Login,
 		Age:          req.Age,
 		Height:       req.Height,
 		Weight:       req.Weight,
@@ -100,6 +102,9 @@ func MapUpdateRequestToUser(req dto.UpdateUserRequest, existing domain.User) dom
 		existing.Name = req.Name
 	} else if existing.Name == "" {
 		existing.Name = "Пользователь"
+	}
+	if req.Login != "" {
+		existing.Login = req.Login
 	}
 	existing.Age = req.Age
 	existing.Height = req.Height

@@ -15,6 +15,7 @@ type AuthResponse = {
   user: {
     id: string;
     name: string;
+    login: string;
     age: number;
     height: number;
     weight: number;
@@ -27,6 +28,7 @@ type AuthResponse = {
 
 type RegisterInput = {
   name: string;
+  login: string;
   email: string;
   password: string;
   goal: string;
@@ -41,18 +43,22 @@ type RegisterInput = {
 export const LEGACY_DEFAULT_PASSWORD = "123";
 const APP_DEFAULT_PASSWORD = "Pass1234";
 
-export async function loginWithEmail(email: string, password: string) {
+export async function loginWithIdentifier(identifier: string, password: string) {
   const payload = await apiRequest<AuthResponse>("/auth/login", {
     method: "POST",
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ identifier, password }),
   });
 
   await persistTokens(payload);
   return payload;
 }
 
+export async function loginWithEmail(email: string, password: string) {
+  return loginWithIdentifier(email, password);
+}
+
 export async function loginLegacyByUserId(userId: string) {
-  return loginWithEmail(buildLegacyEmail(userId), LEGACY_DEFAULT_PASSWORD);
+  return loginWithIdentifier(buildLegacyEmail(userId), LEGACY_DEFAULT_PASSWORD);
 }
 
 export async function registerWithProfile(input: RegisterInput) {
@@ -60,6 +66,7 @@ export async function registerWithProfile(input: RegisterInput) {
     method: "POST",
     body: JSON.stringify({
       name: input.name,
+      login: input.login,
       email: input.email,
       password: input.password,
       age: input.age ?? 0,

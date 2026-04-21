@@ -3,7 +3,7 @@ import { useRouter } from "expo-router";
 import { useState } from "react";
 import { ActivityIndicator, SafeAreaView, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { getUser, getUserWorkouts, generateWorkout } from "@/services/fitness-service";
-import { buildLegacyEmail, LEGACY_DEFAULT_PASSWORD, loginWithEmail } from "@/services/auth-service";
+import { loginWithIdentifier } from "@/services/auth-service";
 import { ApiError } from "@/services/api";
 import { CURRENT_WORKOUT_ID_KEY, IS_REGISTERED_KEY, USER_ID_KEY } from "@/services/storage";
 import { colors } from "./theme";
@@ -14,6 +14,7 @@ export default function Register() {
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [registerName, setRegisterName] = useState("");
+  const [registerLogin, setRegisterLogin] = useState("");
   const [registerEmail, setRegisterEmail] = useState("");
   const [registerPassword, setRegisterPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -21,6 +22,7 @@ export default function Register() {
 
   const handleRegistrationStart = async () => {
     const name = registerName.trim();
+    const login = registerLogin.trim().toLowerCase();
     const email = registerEmail.trim().toLowerCase();
     const pwd = registerPassword.trim();
 
@@ -34,6 +36,11 @@ export default function Register() {
       return;
     }
 
+    if (!login || login.length < 3) {
+      setSubmitError("Введите логин не короче 3 символов.");
+      return;
+    }
+
     if (pwd.length < 8) {
       setSubmitError("Пароль должен быть не короче 8 символов.");
       return;
@@ -43,6 +50,7 @@ export default function Register() {
       pathname: "/create-workout",
       params: {
         name,
+        login,
         email,
         password: pwd,
       },
@@ -58,27 +66,16 @@ export default function Register() {
       return;
     }
 
-    const looksLikeEmail = normalizedIdentifier.includes("@");
-    const looksLikeUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(normalizedIdentifier);
-
-    if (!looksLikeEmail && !looksLikeUUID) {
-      setSubmitError("Введите корректный email или user id (UUID).");
-      return;
-    }
-
-    if (looksLikeEmail && !normalizedPassword) {
+    if (!normalizedPassword) {
       setSubmitError("Введите пароль.");
       return;
     }
-
-    const loginEmail = looksLikeEmail ? normalizedIdentifier : buildLegacyEmail(normalizedIdentifier);
-    const loginPassword = normalizedPassword || LEGACY_DEFAULT_PASSWORD;
 
     setIsSubmitting(true);
     setSubmitError(null);
 
     try {
-      const authPayload = await loginWithEmail(loginEmail, loginPassword);
+      const authPayload = await loginWithIdentifier(normalizedIdentifier, normalizedPassword);
       const user = await getUser(authPayload.user.id);
       const workouts = await getUserWorkouts(authPayload.user.id);
       let activeWorkoutId = workouts[0]?.id;
@@ -167,7 +164,7 @@ export default function Register() {
               onChangeText={setIdentifier}
               autoCapitalize="none"
               autoCorrect={false}
-              placeholder="Email или user id (UUID)"
+              placeholder="Почта или логин"
               placeholderTextColor="#999"
               style={{
                 width: "100%",
@@ -250,6 +247,25 @@ export default function Register() {
               autoCorrect={false}
               keyboardType="email-address"
               placeholder="Почта"
+              placeholderTextColor="#999"
+              style={{
+                width: "100%",
+                height: 52,
+                borderRadius: 14,
+                backgroundColor: "#FFFFFF",
+                paddingHorizontal: 14,
+                color: "#000000",
+                fontSize: 16,
+                marginBottom: 14,
+              }}
+            />
+
+            <TextInput
+              value={registerLogin}
+              onChangeText={setRegisterLogin}
+              autoCapitalize="none"
+              autoCorrect={false}
+              placeholder="Логин"
               placeholderTextColor="#999"
               style={{
                 width: "100%",

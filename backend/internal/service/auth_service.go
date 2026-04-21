@@ -66,6 +66,17 @@ func (s *authService) Register(ctx context.Context, req dto.RegisterRequest) (dt
 		return dto.AuthResponse{}, err
 	}
 
+	login := normalizeLogin(req.Login)
+	if login == "" {
+		return dto.AuthResponse{}, fmt.Errorf("login is required")
+	}
+
+	if _, err := s.userRepo.GetByLogin(ctx, login); err == nil {
+		return dto.AuthResponse{}, fmt.Errorf("login already in use")
+	} else if !errors.Is(err, repository.ErrUserNotFound) {
+		return dto.AuthResponse{}, err
+	}
+
 	passwordHash, err := hashValue(req.Password)
 	if err != nil {
 		return dto.AuthResponse{}, err
@@ -74,6 +85,7 @@ func (s *authService) Register(ctx context.Context, req dto.RegisterRequest) (dt
 	user := domain.User{ID: uuid.New()}
 	user = utils.MapUpdateRequestToUser(dto.UpdateUserRequest{
 		Name:         req.Name,
+		Login:        login,
 		Age:          req.Age,
 		Height:       req.Height,
 		Weight:       req.Weight,
@@ -102,7 +114,12 @@ func (s *authService) Register(ctx context.Context, req dto.RegisterRequest) (dt
 }
 
 func (s *authService) Login(ctx context.Context, req dto.LoginRequest) (dto.AuthResponse, error) {
-	credentials, err := s.credentialsRepo.GetByEmail(ctx, normalizeEmail(req.Email))
+	identifier := normalizeIdentifier(req.Identifier)
+	if identifier == "" {
+		return dto.AuthResponse{}, ErrInvalidCredentials
+	}
+
+	credentials, err := s.credentialsRepo.GetByIdentifier(ctx, identifier)
 	if err != nil {
 		if errors.Is(err, repository.ErrCredentialsNotFound) {
 			return dto.AuthResponse{}, ErrInvalidCredentials
@@ -251,4 +268,17 @@ func hashRefreshToken(refreshToken string) string {
 
 func normalizeEmail(email string) string {
 	return strings.ToLower(strings.TrimSpace(email))
+}
+
+func normalizeLogin(login string) string {
+	return strings.ToLower(strings.TrimSpace(login))
+}
+
+func normalizeIdentifier(identifier string) string {
+	trimmed := strings.TrimSpace(identifier)
+	if strings.Contains(trimmed, "@") {
+		return normalizeEmail(trimmed)
+	}
+
+	return normalizeLogin(trimmed)
 }

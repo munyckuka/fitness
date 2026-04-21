@@ -314,7 +314,7 @@ function Step5Frequency({ data, onUpdate }: { data: WorkoutData; onUpdate: (data
 
 export default function CreateWorkout() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ name?: string; email?: string; password?: string }>();
+  const params = useLocalSearchParams<{ name?: string; login?: string; email?: string; password?: string }>();
   const [step, setStep] = useState(0);
   const [data, setData] = useState<WorkoutData>({});
   const [isPreparingFlow, setIsPreparingFlow] = useState(true);
@@ -394,6 +394,7 @@ export default function CreateWorkout() {
   const isLastStep = step === steps.length - 1;
 
   const registrationName = typeof params.name === "string" ? params.name.trim() : "";
+  const registrationLogin = typeof params.login === "string" ? params.login.trim().toLowerCase() : "";
   const registrationEmail = typeof params.email === "string" ? params.email.trim().toLowerCase() : "";
   const registrationPassword = typeof params.password === "string" ? params.password : "";
 
@@ -465,12 +466,13 @@ export default function CreateWorkout() {
     setIsSubmitting(true);
 
     try {
-      if (!registrationName || !registrationEmail || !registrationPassword) {
-        throw new Error("Сначала введите имя, почту и пароль на экране регистрации.");
+      if (!registrationName || !registrationLogin || !registrationEmail || !registrationPassword) {
+        throw new Error("Сначала введите имя, логин, почту и пароль на экране регистрации.");
       }
 
       const authResponse = await registerWithProfile({
         name: registrationName,
+        login: registrationLogin,
         email: registrationEmail,
         password: registrationPassword,
         goal: mapGoalToBackendAuth(data.goal),

@@ -25,6 +25,7 @@ export type WorkoutSummary = {
 export type UserProfile = {
   id: string;
   name: string;
+  login?: string;
   gender?: string;
   goal: string;
   experience: string;
@@ -161,6 +162,7 @@ function normalizeUser(payload: BackendUser): UserProfile {
   return {
     id: payload.id,
     name: normalizedName,
+    login: payload.login,
     goal: localizeGoal(payload.fitnessGoal),
     experience: localizeLevel(payload.fitnessLevel),
     equipment: equipment.map(localizeEquipment).join(", "),
@@ -213,6 +215,7 @@ function normalizeProgress(payload: BackendProgress): ProgressData {
 type BackendUser = {
   id: string;
   name?: string;
+  login?: string;
   age: number;
   height: number;
   weight: number;

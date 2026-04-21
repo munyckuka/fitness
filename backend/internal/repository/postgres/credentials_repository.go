@@ -66,6 +66,42 @@ func (r *CredentialsRepository) GetByEmail(ctx context.Context, email string) (d
 	return credentials, nil
 }
 
+func (r *CredentialsRepository) GetByIdentifier(ctx context.Context, identifier string) (domain.Credentials, error) {
+	normalized := strings.ToLower(strings.TrimSpace(identifier))
+
+	var credentials domain.Credentials
+	var refreshTokenHash sql.NullString
+
+	err := r.db.QueryRowContext(ctx, `
+		SELECT c.user_id, c.email, c.password_hash, c.is_email_verified, c.refresh_token_hash, c.created_at, c.updated_at
+		FROM credentials c
+		JOIN users u ON u.id = c.user_id
+		WHERE LOWER(c.email) = $1 OR LOWER(u.login) = $1
+		LIMIT 1
+	`, normalized).Scan(
+		&credentials.UserID,
+		&credentials.Email,
+		&credentials.PasswordHash,
+		&credentials.IsEmailVerified,
+		&refreshTokenHash,
+		&credentials.CreatedAt,
+		&credentials.UpdatedAt,
+	)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return domain.Credentials{}, repository.ErrCredentialsNotFound
+		}
+		return domain.Credentials{}, err
+	}
+
+	if refreshTokenHash.Valid {
+		credentials.RefreshTokenHash = &refreshTokenHash.String
+	}
+
+	return credentials, nil
+}
+
 func (r *CredentialsRepository) GetByUserID(ctx context.Context, userID uuid.UUID) (domain.Credentials, error) {
 	var credentials domain.Credentials
 	var refreshTokenHash sql.NullString
