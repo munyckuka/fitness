@@ -13,11 +13,40 @@ export default function Register() {
   const [mode, setMode] = useState<"login" | "register">("login");
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
+  const [registerName, setRegisterName] = useState("");
+  const [registerEmail, setRegisterEmail] = useState("");
+  const [registerPassword, setRegisterPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const handleRegistrationStart = async () => {
-    router.push("/create-workout");
+    const name = registerName.trim();
+    const email = registerEmail.trim().toLowerCase();
+    const pwd = registerPassword.trim();
+
+    if (!name) {
+      setSubmitError("Введите имя.");
+      return;
+    }
+
+    if (!email.includes("@")) {
+      setSubmitError("Введите корректную почту.");
+      return;
+    }
+
+    if (pwd.length < 8) {
+      setSubmitError("Пароль должен быть не короче 8 символов.");
+      return;
+    }
+
+    router.push({
+      pathname: "/create-workout",
+      params: {
+        name,
+        email,
+        password: pwd,
+      },
+    });
   };
 
   const handleLogin = async () => {
@@ -194,20 +223,81 @@ export default function Register() {
             </TouchableOpacity>
           </>
         ) : (
-        <TouchableOpacity
-          activeOpacity={0.85}
-          onPress={handleRegistrationStart}
-          style={{
-            width: "100%",
-            height: 56,
-            borderRadius: 16,
-            backgroundColor: "#FFFFFF",
-            justifyContent: "center",
-            alignItems: "center",
-          }}
-        >
-          <Text style={{ color: "#000000", fontSize: 18, fontWeight: "500" }}>Создать профиль</Text>
-        </TouchableOpacity>
+          <>
+            <TextInput
+              value={registerName}
+              onChangeText={setRegisterName}
+              autoCapitalize="words"
+              autoCorrect={false}
+              placeholder="Имя"
+              placeholderTextColor="#999"
+              style={{
+                width: "100%",
+                height: 52,
+                borderRadius: 14,
+                backgroundColor: "#FFFFFF",
+                paddingHorizontal: 14,
+                color: "#000000",
+                fontSize: 16,
+                marginBottom: 14,
+              }}
+            />
+
+            <TextInput
+              value={registerEmail}
+              onChangeText={setRegisterEmail}
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="email-address"
+              placeholder="Почта"
+              placeholderTextColor="#999"
+              style={{
+                width: "100%",
+                height: 52,
+                borderRadius: 14,
+                backgroundColor: "#FFFFFF",
+                paddingHorizontal: 14,
+                color: "#000000",
+                fontSize: 16,
+                marginBottom: 14,
+              }}
+            />
+
+            <TextInput
+              value={registerPassword}
+              onChangeText={setRegisterPassword}
+              secureTextEntry
+              autoCapitalize="none"
+              autoCorrect={false}
+              placeholder="Пароль"
+              placeholderTextColor="#999"
+              style={{
+                width: "100%",
+                height: 52,
+                borderRadius: 14,
+                backgroundColor: "#FFFFFF",
+                paddingHorizontal: 14,
+                color: "#000000",
+                fontSize: 16,
+                marginBottom: 14,
+              }}
+            />
+
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={handleRegistrationStart}
+              style={{
+                width: "100%",
+                height: 56,
+                borderRadius: 16,
+                backgroundColor: "#FFFFFF",
+                justifyContent: "center",
+                alignItems: "center",
+              }}
+            >
+              <Text style={{ color: "#000000", fontSize: 18, fontWeight: "500" }}>Продолжить</Text>
+            </TouchableOpacity>
+          </>
         )}
 
         {submitError ? (

@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { ActivityIndicator, SafeAreaView, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { generateWorkout, getUser, updateUser, type UserProfile } from "@/services/fitness-service";
-import { mapEquipmentToBackend as mapEquipmentToBackendAuth, mapGoalToBackend as mapGoalToBackendAuth, mapLevelToBackend as mapLevelToBackendAuth, registerAppUser } from "@/services/auth-service";
+import { mapEquipmentToBackend as mapEquipmentToBackendAuth, mapGoalToBackend as mapGoalToBackendAuth, mapLevelToBackend as mapLevelToBackendAuth, registerWithProfile } from "@/services/auth-service";
 import { CURRENT_WORKOUT_ID_KEY, IS_REGISTERED_KEY, USER_ID_KEY } from "@/services/storage";
 import { colors } from "./theme";
 
@@ -314,6 +314,7 @@ function Step5Frequency({ data, onUpdate }: { data: WorkoutData; onUpdate: (data
 
 export default function CreateWorkout() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ name?: string; email?: string; password?: string }>();
   const [step, setStep] = useState(0);
   const [data, setData] = useState<WorkoutData>({});
   const [isPreparingFlow, setIsPreparingFlow] = useState(true);
@@ -392,6 +393,10 @@ export default function CreateWorkout() {
 
   const isLastStep = step === steps.length - 1;
 
+  const registrationName = typeof params.name === "string" ? params.name.trim() : "";
+  const registrationEmail = typeof params.email === "string" ? params.email.trim().toLowerCase() : "";
+  const registrationPassword = typeof params.password === "string" ? params.password : "";
+
   const handleContinue = async () => {
     setSubmitError(null);
 
@@ -460,7 +465,14 @@ export default function CreateWorkout() {
     setIsSubmitting(true);
 
     try {
-      const authResponse = await registerAppUser({
+      if (!registrationName || !registrationEmail || !registrationPassword) {
+        throw new Error("Сначала введите имя, почту и пароль на экране регистрации.");
+      }
+
+      const authResponse = await registerWithProfile({
+        name: registrationName,
+        email: registrationEmail,
+        password: registrationPassword,
         goal: mapGoalToBackendAuth(data.goal),
         experience: mapLevelToBackendAuth(data.experience),
         frequency: toNumber(data.frequency) ?? 3,

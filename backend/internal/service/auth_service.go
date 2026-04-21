@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"strings"
 	"time"
-	"unicode"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
@@ -231,25 +230,6 @@ func (s *authService) parseToken(tokenString string, expectedType string) (*auth
 func validatePasswordComplexity(password string) error {
 	if len(password) < 8 {
 		return fmt.Errorf("password must be at least 8 characters")
-	}
-
-	var hasUpper bool
-	var hasLower bool
-	var hasDigit bool
-
-	for _, char := range password {
-		switch {
-		case unicode.IsUpper(char):
-			hasUpper = true
-		case unicode.IsLower(char):
-			hasLower = true
-		case unicode.IsDigit(char):
-			hasDigit = true
-		}
-	}
-
-	if !hasUpper || !hasLower || !hasDigit {
-		return fmt.Errorf("password must include uppercase, lowercase, and digit")
 	}
 
 	return nil

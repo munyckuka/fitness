@@ -14,6 +14,7 @@ type AuthResponse = {
   refreshToken: string;
   user: {
     id: string;
+    name: string;
     age: number;
     height: number;
     weight: number;
@@ -25,6 +26,7 @@ type AuthResponse = {
 };
 
 type RegisterInput = {
+  name: string;
   email: string;
   password: string;
   goal: string;
@@ -57,6 +59,7 @@ export async function registerWithProfile(input: RegisterInput) {
   const payload = await apiRequest<AuthResponse>("/auth/register", {
     method: "POST",
     body: JSON.stringify({
+      name: input.name,
       email: input.email,
       password: input.password,
       age: input.age ?? 0,
