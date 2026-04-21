@@ -3,6 +3,7 @@ import { useRouter } from "expo-router";
 import { useState } from "react";
 import { ActivityIndicator, SafeAreaView, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { getUser, getUserWorkouts, generateWorkout } from "@/services/fitness-service";
+import { loginLegacyByUserId } from "@/services/auth-service";
 import { ApiError } from "@/services/api";
 import { CURRENT_WORKOUT_ID_KEY, IS_REGISTERED_KEY, USER_ID_KEY } from "@/services/storage";
 import { colors } from "./theme";
@@ -30,6 +31,7 @@ export default function Register() {
     setSubmitError(null);
 
     try {
+      await loginLegacyByUserId(normalizedUserId);
       const user = await getUser(normalizedUserId);
       const workouts = await getUserWorkouts(normalizedUserId);
       let activeWorkoutId = workouts[0]?.id;

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"backend/internal/middleware"
 	"backend/internal/utils"
 	"net/http"
 
@@ -19,14 +20,19 @@ func NewWorkoutHandler(s service.WorkoutService) *WorkoutHandler {
 }
 
 func (h *WorkoutHandler) GenerateWorkout(c *gin.Context) {
-	var req dto.GenerateWorkoutRequest
-
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	rawUserID, exists := c.Get(middleware.ContextUserIDKey)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
 
-	workout, err := h.service.GenerateWorkout(c.Request.Context(), req.UserID)
+	userID, ok := rawUserID.(string)
+	if !ok || userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	workout, err := h.service.GenerateWorkout(c.Request.Context(), userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -38,6 +44,18 @@ func (h *WorkoutHandler) GenerateWorkout(c *gin.Context) {
 }
 
 func (h *WorkoutHandler) CompleteWorkout(c *gin.Context) {
+	rawUserID, exists := c.Get(middleware.ContextUserIDKey)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	userID, ok := rawUserID.(string)
+	if !ok || userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
 	var req dto.CompleteWorkoutRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -45,11 +63,11 @@ func (h *WorkoutHandler) CompleteWorkout(c *gin.Context) {
 		return
 	}
 
-	logs := utils.MapToWorkoutLog(req.UserID, req.WorkoutID, req)
+	logs := utils.MapToWorkoutLog(userID, req.WorkoutID, req)
 
 	err := h.service.CompleteWorkout(
 		c.Request.Context(),
-		req.UserID,
+		userID,
 		req.WorkoutID,
 		req.Difficulty,
 		logs,

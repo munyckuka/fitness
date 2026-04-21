@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { ActivityIndicator, SafeAreaView, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { createUser, generateWorkout, getUser, updateUser, type UserProfile } from "@/services/fitness-service";
+import { generateWorkout, getUser, updateUser, type UserProfile } from "@/services/fitness-service";
+import { mapEquipmentToBackend as mapEquipmentToBackendAuth, mapGoalToBackend as mapGoalToBackendAuth, mapLevelToBackend as mapLevelToBackendAuth, registerAppUser } from "@/services/auth-service";
 import { CURRENT_WORKOUT_ID_KEY, IS_REGISTERED_KEY, USER_ID_KEY } from "@/services/storage";
 import { colors } from "./theme";
 
@@ -459,8 +460,22 @@ export default function CreateWorkout() {
     setIsSubmitting(true);
 
     try {
-      const payload = buildProfilePayload(data);
-      const user = await createUser(payload);
+      const authResponse = await registerAppUser({
+        goal: mapGoalToBackendAuth(data.goal),
+        experience: mapLevelToBackendAuth(data.experience),
+        frequency: toNumber(data.frequency) ?? 3,
+        equipment: [mapEquipmentToBackendAuth(data.equipment)],
+        age: toNumber(data.age),
+        height: toNumber(data.height),
+        weight: toNumber(data.weight),
+      });
+
+      const user = {
+        id: authResponse.user.id,
+        goal: data.goal ?? "Персональный план",
+        experience: data.experience ?? "Новичок",
+        equipment: data.equipment ?? "Домашний",
+      };
 
       if (!user.id) {
         throw new Error("Сервер не вернул идентификатор пользователя.");

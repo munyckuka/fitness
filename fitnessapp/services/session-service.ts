@@ -1,9 +1,11 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { CompleteWorkoutExerciseInput } from "@/services/fitness-service";
 import {
+  ACCESS_TOKEN_KEY,
   CURRENT_WORKOUT_ID_KEY,
   CURRENT_WORKOUT_PROGRESS_KEY,
   PENDING_WORKOUT_COMPLETION_KEY,
+  REFRESH_TOKEN_KEY,
   USER_ID_KEY,
 } from "@/services/storage";
 
@@ -27,6 +29,30 @@ export async function setStoredUserId(userId: string) {
 
 export async function clearStoredUserId() {
   return AsyncStorage.removeItem(USER_ID_KEY);
+}
+
+export async function getStoredAccessToken() {
+  return AsyncStorage.getItem(ACCESS_TOKEN_KEY);
+}
+
+export async function setStoredAccessToken(accessToken: string) {
+  return AsyncStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
+}
+
+export async function clearStoredAccessToken() {
+  return AsyncStorage.removeItem(ACCESS_TOKEN_KEY);
+}
+
+export async function getStoredRefreshToken() {
+  return AsyncStorage.getItem(REFRESH_TOKEN_KEY);
+}
+
+export async function setStoredRefreshToken(refreshToken: string) {
+  return AsyncStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+}
+
+export async function clearStoredRefreshToken() {
+  return AsyncStorage.removeItem(REFRESH_TOKEN_KEY);
 }
 
 export async function getStoredWorkoutId() {

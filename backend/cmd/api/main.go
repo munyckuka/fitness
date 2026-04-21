@@ -2,6 +2,7 @@ package main
 
 import (
 	"backend/internal/handler"
+	"backend/internal/middleware"
 	"backend/internal/repository/postgres"
 	"backend/internal/service"
 	"database/sql"
@@ -39,11 +40,15 @@ func main() {
 	}
 
 	userRepo := postgres.NewUserRepository(db)
+	credentialsRepo := postgres.NewCredentialsRepository(db)
 	exerciseRepo := postgres.NewExerciseRepository(db)
 	workoutRepo := postgres.NewWorkoutRepository(db)
 	logRepo := postgres.NewLogRepository(db)
 	progressRepo := postgres.NewProgressRepository(db)
 	progressService := service.NewProgressService(progressRepo, logRepo)
+	jwtSecret := os.Getenv("JWT_SECRET")
+	authService := service.NewAuthService(userRepo, credentialsRepo, jwtSecret)
+	authMiddleware := middleware.NewAuthMiddleware(jwtSecret)
 
 	workoutService := service.NewWorkoutService(
 		userRepo,
@@ -54,6 +59,7 @@ func main() {
 		progressService,
 	)
 
+	authHandler := handler.NewAuthHandler(authService)
 	userHandler := handler.NewUserHandler(service.NewUserService(userRepo))
 	workoutHandler := handler.NewWorkoutHandler(workoutService)
 	progressHandler := handler.NewProgressHandler(progressService)
@@ -71,7 +77,7 @@ func main() {
 
 		c.Next()
 	})
-	handler.SetupRoutes(r, userHandler, workoutHandler, progressHandler)
+	handler.SetupRoutes(r, authMiddleware, authHandler, userHandler, workoutHandler, progressHandler)
 
 	port := getenv("PORT", "8080")
 	log.Fatal(r.Run(":" + port))

@@ -3,9 +3,12 @@ package repository
 import (
 	"backend/internal/domain"
 	"context"
+	"errors"
 
 	"github.com/google/uuid"
 )
+
+var ErrCredentialsNotFound = errors.New("credentials not found")
 
 type LogRepository interface {
 	Save(ctx context.Context, log domain.WorkoutLog) error
@@ -23,6 +26,13 @@ type UserRepository interface {
 	GetByID(ctx context.Context, id string) (domain.User, error)
 	Create(ctx context.Context, user domain.User) (domain.User, error)
 	Update(ctx context.Context, user domain.User) (domain.User, error)
+}
+
+type CredentialsRepository interface {
+	Create(ctx context.Context, credentials domain.Credentials) error
+	GetByEmail(ctx context.Context, email string) (domain.Credentials, error)
+	GetByUserID(ctx context.Context, userID uuid.UUID) (domain.Credentials, error)
+	UpdateRefreshTokenHash(ctx context.Context, userID uuid.UUID, refreshTokenHash *string) error
 }
 
 type WorkoutRepository interface {

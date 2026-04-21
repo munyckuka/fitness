@@ -2,13 +2,23 @@ package handler
 
 import "github.com/gin-gonic/gin"
 
-func SetupRoutes(r *gin.Engine, userHandler *UserHandler, workoutHandler *WorkoutHandler, progressHandler *ProgressHandler) {
+func SetupRoutes(r *gin.Engine, authMiddleware gin.HandlerFunc, authHandler *AuthHandler, userHandler *UserHandler, workoutHandler *WorkoutHandler, progressHandler *ProgressHandler) {
 
 	api := r.Group("/api/v1")
 
 	{
+		auth := api.Group("/auth")
+		{
+			auth.POST("/register", authHandler.Register)
+			auth.POST("/login", authHandler.Login)
+			auth.POST("/refresh", authHandler.Refresh)
+			auth.POST("/logout", authHandler.Logout)
+		}
+
 		users := api.Group("/users")
 		{
+			users.GET("/me", authMiddleware, userHandler.GetMe)
+			users.PUT("/me", authMiddleware, userHandler.UpdateMe)
 			users.POST("/", userHandler.CreateUser)
 			users.GET("/:id", userHandler.GetUser)
 			users.PUT("/:id", userHandler.UpdateUser)
@@ -16,8 +26,8 @@ func SetupRoutes(r *gin.Engine, userHandler *UserHandler, workoutHandler *Workou
 
 		workouts := api.Group("/workouts")
 		{
-			workouts.POST("/generate", workoutHandler.GenerateWorkout)
-			workouts.POST("/complete", workoutHandler.CompleteWorkout)
+			workouts.POST("/generate", authMiddleware, workoutHandler.GenerateWorkout)
+			workouts.POST("/complete", authMiddleware, workoutHandler.CompleteWorkout)
 			workouts.GET("/user/:id", workoutHandler.GetUserWorkouts)
 		}
 

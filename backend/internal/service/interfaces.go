@@ -18,6 +18,13 @@ type UserService interface {
 	GetByID(ctx context.Context, id string) (domain.User, error)
 }
 
+type AuthService interface {
+	Register(ctx context.Context, req dto.RegisterRequest) (dto.AuthResponse, error)
+	Login(ctx context.Context, req dto.LoginRequest) (dto.AuthResponse, error)
+	Refresh(ctx context.Context, refreshToken string) (dto.AuthResponse, error)
+	Logout(ctx context.Context, refreshToken string) error
+}
+
 type ProgressService interface {
 	GetProgress(ctx context.Context, userID string) (domain.Progress, error)
 	UpdateAfterWorkout(ctx context.Context, userID string, difficulty int, log domain.WorkoutLog) error
