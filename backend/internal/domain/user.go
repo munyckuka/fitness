@@ -12,6 +12,7 @@ const (
 
 type User struct {
 	ID           uuid.UUID
+	Name         string
 	Age          int
 	Height       float64
 	Weight       float64

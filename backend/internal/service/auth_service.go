@@ -74,6 +74,7 @@ func (s *authService) Register(ctx context.Context, req dto.RegisterRequest) (dt
 
 	user := domain.User{ID: uuid.New()}
 	user = utils.MapUpdateRequestToUser(dto.UpdateUserRequest{
+		Name:         req.Name,
 		Age:          req.Age,
 		Height:       req.Height,
 		Weight:       req.Weight,

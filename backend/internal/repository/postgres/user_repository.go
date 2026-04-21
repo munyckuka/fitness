@@ -29,9 +29,9 @@ func (r *UserRepository) Create(ctx context.Context, user domain.User) (domain.U
 	}
 
 	_, err = tx.ExecContext(ctx, `
-		INSERT INTO users (id, age, height, weight, goal, level, frequency)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
-	`, user.ID, user.Age, user.Height, user.Weight, string(user.FitnessGoal), user.FitnessLevel, user.Frequency)
+		INSERT INTO users (id, name, age, height, weight, goal, level, frequency)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+	`, user.ID, user.Name, user.Age, user.Height, user.Weight, string(user.FitnessGoal), user.FitnessLevel, user.Frequency)
 	if err != nil {
 		tx.Rollback()
 		return domain.User{}, err
@@ -57,14 +57,15 @@ func (r *UserRepository) Update(ctx context.Context, user domain.User) (domain.U
 
 	result, err := tx.ExecContext(ctx, `
 		UPDATE users
-		SET age = $1,
-		    height = $2,
-		    weight = $3,
-		    goal = $4,
-		    level = $5,
-		    frequency = $6
-		WHERE id = $7
-	`, user.Age, user.Height, user.Weight, string(user.FitnessGoal), user.FitnessLevel, user.Frequency, user.ID)
+		SET name = $1,
+		    age = $2,
+		    height = $3,
+		    weight = $4,
+		    goal = $5,
+		    level = $6,
+		    frequency = $7
+		WHERE id = $8
+	`, user.Name, user.Age, user.Height, user.Weight, string(user.FitnessGoal), user.FitnessLevel, user.Frequency, user.ID)
 	if err != nil {
 		tx.Rollback()
 		return domain.User{}, err
@@ -94,7 +95,7 @@ func (r *UserRepository) Update(ctx context.Context, user domain.User) (domain.U
 
 func (r *UserRepository) GetByID(ctx context.Context, id string) (domain.User, error) {
 	query := `
-    SELECT id, age, height, weight, goal, level, frequency
+	SELECT id, name, age, height, weight, goal, level, frequency
     FROM users
     WHERE id = $1
     `
@@ -108,7 +109,7 @@ func (r *UserRepository) GetByID(ctx context.Context, id string) (domain.User, e
 	var goalStr string
 
 	err = r.db.QueryRowContext(ctx, query, parsedUuid.String()).
-		Scan(&user.ID, &user.Age, &user.Height, &user.Weight, &goalStr, &user.FitnessLevel, &user.Frequency)
+		Scan(&user.ID, &user.Name, &user.Age, &user.Height, &user.Weight, &goalStr, &user.FitnessLevel, &user.Frequency)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return domain.User{}, fmt.Errorf("user not found")

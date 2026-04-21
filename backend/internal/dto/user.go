@@ -1,6 +1,7 @@
 package dto
 
 type UpdateUserRequest struct {
+	Name         string   `json:"name"`
 	Age          int      `json:"age"`
 	Height       float64  `json:"height"`
 	Weight       float64  `json:"weight"`
@@ -12,6 +13,7 @@ type UpdateUserRequest struct {
 
 type UserResponse struct {
 	ID           string   `json:"id"`
+	Name         string   `json:"name"`
 	Age          int      `json:"age"`
 	Height       float64  `json:"height"`
 	Weight       float64  `json:"weight"`

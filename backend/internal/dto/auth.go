@@ -1,6 +1,7 @@
 package dto
 
 type RegisterRequest struct {
+	Name         string   `json:"name"`
 	Email        string   `json:"email" binding:"required,email"`
 	Password     string   `json:"password" binding:"required,min=8"`
 	Age          int      `json:"age"`
