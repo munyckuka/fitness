@@ -6,6 +6,8 @@ import (
 	"backend/internal/repository"
 	"backend/internal/utils"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"strings"
@@ -140,7 +142,7 @@ func (s *authService) Refresh(ctx context.Context, refreshToken string) (dto.Aut
 		return dto.AuthResponse{}, ErrInvalidRefreshToken
 	}
 
-	if err := bcrypt.CompareHashAndPassword([]byte(*credentials.RefreshTokenHash), []byte(refreshToken)); err != nil {
+	if *credentials.RefreshTokenHash != hashRefreshToken(refreshToken) {
 		return dto.AuthResponse{}, ErrInvalidRefreshToken
 	}
 
@@ -177,10 +179,7 @@ func (s *authService) issueTokensAndPersistRefresh(ctx context.Context, user dom
 		return dto.AuthResponse{}, err
 	}
 
-	refreshHash, err := hashValue(refreshToken)
-	if err != nil {
-		return dto.AuthResponse{}, err
-	}
+	refreshHash := hashRefreshToken(refreshToken)
 
 	if err := s.credentialsRepo.UpdateRefreshTokenHash(ctx, user.ID, &refreshHash); err != nil {
 		return dto.AuthResponse{}, err
@@ -262,6 +261,11 @@ func hashValue(raw string) (string, error) {
 	}
 
 	return string(hashed), nil
+}
+
+func hashRefreshToken(refreshToken string) string {
+	digest := sha256.Sum256([]byte(refreshToken))
+	return hex.EncodeToString(digest[:])
 }
 
 func normalizeEmail(email string) string {

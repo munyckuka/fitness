@@ -3,7 +3,7 @@ import { useRouter } from "expo-router";
 import { useState } from "react";
 import { ActivityIndicator, SafeAreaView, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { getUser, getUserWorkouts, generateWorkout } from "@/services/fitness-service";
-import { loginLegacyByUserId } from "@/services/auth-service";
+import { buildLegacyEmail, LEGACY_DEFAULT_PASSWORD, loginWithEmail } from "@/services/auth-service";
 import { ApiError } from "@/services/api";
 import { CURRENT_WORKOUT_ID_KEY, IS_REGISTERED_KEY, USER_ID_KEY } from "@/services/storage";
 import { colors } from "./theme";
@@ -11,7 +11,8 @@ import { colors } from "./theme";
 export default function Register() {
   const router = useRouter();
   const [mode, setMode] = useState<"login" | "register">("login");
-  const [userId, setUserId] = useState("");
+  const [identifier, setIdentifier] = useState("");
+  const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -20,24 +21,41 @@ export default function Register() {
   };
 
   const handleLogin = async () => {
-    const normalizedUserId = userId.trim();
+    const normalizedIdentifier = identifier.trim();
+    const normalizedPassword = password.trim();
 
-    if (!normalizedUserId) {
-      setSubmitError("Введите ваш ID пользователя.");
+    if (!normalizedIdentifier) {
+      setSubmitError("Введите email или user id.");
       return;
     }
+
+    const looksLikeEmail = normalizedIdentifier.includes("@");
+    const looksLikeUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(normalizedIdentifier);
+
+    if (!looksLikeEmail && !looksLikeUUID) {
+      setSubmitError("Введите корректный email или user id (UUID).");
+      return;
+    }
+
+    if (looksLikeEmail && !normalizedPassword) {
+      setSubmitError("Введите пароль.");
+      return;
+    }
+
+    const loginEmail = looksLikeEmail ? normalizedIdentifier : buildLegacyEmail(normalizedIdentifier);
+    const loginPassword = normalizedPassword || LEGACY_DEFAULT_PASSWORD;
 
     setIsSubmitting(true);
     setSubmitError(null);
 
     try {
-      await loginLegacyByUserId(normalizedUserId);
-      const user = await getUser(normalizedUserId);
-      const workouts = await getUserWorkouts(normalizedUserId);
+      const authPayload = await loginWithEmail(loginEmail, loginPassword);
+      const user = await getUser(authPayload.user.id);
+      const workouts = await getUserWorkouts(authPayload.user.id);
       let activeWorkoutId = workouts[0]?.id;
 
       if (!activeWorkoutId) {
-        const generatedWorkout = await generateWorkout(normalizedUserId, {
+        const generatedWorkout = await generateWorkout(authPayload.user.id, {
           goal: user.goal,
           experience: user.experience,
           equipment: user.equipment,
@@ -69,22 +87,11 @@ export default function Register() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 24 }}>
+      <View style={{ flex: 1, justifyContent: "flex-start", alignItems: "center", paddingHorizontal: 24, paddingTop: 60 }}>
         <Text style={{ color: colors.textPrimary, fontSize: 48, fontWeight: "500", textAlign: "center", marginBottom: 18 }}>
           Вход/Регистрация
         </Text>
 
-        <Text
-          style={{
-            color: colors.textSecondary,
-            fontSize: 16,
-            textAlign: "center",
-            lineHeight: 24,
-            marginBottom: 40,
-          }}
-        >
-          Продолжите, затем мы сохраним профиль и получим персональный план с сервера
-        </Text>
 
         <View style={{ width: "100%", flexDirection: "row", gap: 10, marginBottom: 20 }}>
           <TouchableOpacity
@@ -127,11 +134,31 @@ export default function Register() {
         {mode === "login" ? (
           <>
             <TextInput
-              value={userId}
-              onChangeText={setUserId}
+              value={identifier}
+              onChangeText={setIdentifier}
               autoCapitalize="none"
               autoCorrect={false}
-              placeholder="Введите user id"
+              placeholder="Email или user id (UUID)"
+              placeholderTextColor="#999"
+              style={{
+                width: "100%",
+                height: 52,
+                borderRadius: 14,
+                backgroundColor: "#FFFFFF",
+                paddingHorizontal: 14,
+                color: "#000000",
+                fontSize: 16,
+                marginBottom: 14,
+              }}
+            />
+
+            <TextInput
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              autoCapitalize="none"
+              autoCorrect={false}
+              placeholder="Пароль (для legacy можно оставить пустым)"
               placeholderTextColor="#999"
               style={{
                 width: "100%",
