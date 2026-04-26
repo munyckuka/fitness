@@ -6,4 +6,3 @@ export const REFRESH_TOKEN_KEY = "fitness.refreshToken";
 export const CURRENT_WORKOUT_ID_KEY = "fitness.currentWorkoutId";
 export const CURRENT_WORKOUT_PROGRESS_KEY = "fitness.currentWorkoutProgress";
 export const PENDING_WORKOUT_COMPLETION_KEY = "fitness.pendingWorkoutCompletion";
-export const ASSIGNED_WORKOUT_NOTIFICATION_IDS_KEY = "fitness.assignedWorkoutNotificationIds";

@@ -37,12 +37,7 @@ export type SharedWorkoutMetadata = {
   exercises: SharedWorkoutExercise[];
 };
 
-export type AssignedWorkoutMetadata = {
-  type: "assigned_workout";
-  scheduledAt: string;
-};
-
-export type ChatMessageMetadata = SharedWorkoutMetadata | AssignedWorkoutMetadata | Record<string, unknown>;
+export type ChatMessageMetadata = SharedWorkoutMetadata | Record<string, unknown>;
 
 export type ChatEvent = {
   type: "message.new" | "conversation.read";
