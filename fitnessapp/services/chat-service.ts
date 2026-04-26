@@ -17,8 +17,27 @@ export type ChatMessage = {
   senderId: string;
   kind: string;
   text: string;
+  metadata?: ChatMessageMetadata;
   createdAt: string;
 };
+
+export type SharedWorkoutExercise = {
+  exerciseId: string;
+  name: string;
+  muscleGroup: string;
+  sets: number;
+  reps: number;
+  rest: number;
+  weight?: number;
+};
+
+export type SharedWorkoutMetadata = {
+  type: "shared_workout";
+  title: string;
+  exercises: SharedWorkoutExercise[];
+};
+
+export type ChatMessageMetadata = SharedWorkoutMetadata | Record<string, unknown>;
 
 export type ChatEvent = {
   type: "message.new" | "conversation.read";
@@ -68,12 +87,24 @@ export async function getDialogMessages(
   return requestWithAuth<ChatMessage[]>(`/chats/dialogs/${conversationId}/messages${suffix}`, { method: "GET" }, userId);
 }
 
-export async function sendDialogMessage(userId: string, conversationId: string, text: string) {
+export async function sendDialogMessage(
+  userId: string,
+  conversationId: string,
+  text: string,
+  options: {
+    kind?: string;
+    metadata?: ChatMessageMetadata;
+  } = {},
+) {
   return requestWithAuth<ChatMessage>(
     `/chats/dialogs/${conversationId}/messages`,
     {
       method: "POST",
-      body: JSON.stringify({ text }),
+      body: JSON.stringify({
+        text,
+        kind: options.kind,
+        metadata: options.metadata,
+      }),
     },
     userId,
   );
@@ -97,6 +128,28 @@ export async function searchUsersByLogin(userId: string, loginQuery: string) {
   }
 
   return requestWithAuth<ChatUserSearchResult[]>(`/users/search?login=${query}`, { method: "GET" }, userId);
+}
+
+export async function importSharedWorkout(
+  userId: string,
+  payload: {
+    exercises: Array<{
+      exerciseId: string;
+      sets: number;
+      reps: number;
+      rest: number;
+      weight?: number;
+    }>;
+  },
+) {
+  return requestWithAuth<{ id: string; userId: string }>(
+    "/workouts/import-shared",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+    userId,
+  );
 }
 
 export async function connectChatEvents(

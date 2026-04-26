@@ -122,6 +122,7 @@ func (h *ChatHandler) ListMessages(c *gin.Context) {
 			SenderID:       msg.SenderID.String(),
 			Kind:           msg.Kind,
 			Text:           msg.Body,
+			Metadata:       msg.Metadata,
 			CreatedAt:      msg.CreatedAt.UTC().Format("2006-01-02T15:04:05Z07:00"),
 		})
 	}
@@ -143,7 +144,7 @@ func (h *ChatHandler) SendMessage(c *gin.Context) {
 		return
 	}
 
-	message, err := h.service.SendMessage(c.Request.Context(), userID, conversationID, req.Text)
+	message, err := h.service.SendMessage(c.Request.Context(), userID, conversationID, req.Text, req.Kind, req.Metadata)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -155,6 +156,7 @@ func (h *ChatHandler) SendMessage(c *gin.Context) {
 		SenderID:       message.SenderID.String(),
 		Kind:           message.Kind,
 		Text:           message.Body,
+		Metadata:       message.Metadata,
 		CreatedAt:      message.CreatedAt.UTC().Format("2006-01-02T15:04:05Z07:00"),
 	})
 }

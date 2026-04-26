@@ -78,10 +78,18 @@ func (s *chatService) ListMessages(ctx context.Context, userID string, conversat
 	return s.repo.ListMessages(ctx, parsedUserID, parsedConversationID, limit, beforeID)
 }
 
-func (s *chatService) SendMessage(ctx context.Context, userID string, conversationID string, text string) (domain.ChatMessage, error) {
+func (s *chatService) SendMessage(ctx context.Context, userID string, conversationID string, text string, kind string, metadata []byte) (domain.ChatMessage, error) {
 	trimmedText := strings.TrimSpace(text)
-	if trimmedText == "" {
+	if kind == "" {
+		kind = "text"
+	}
+
+	if kind == "text" && trimmedText == "" {
 		return domain.ChatMessage{}, ErrEmptyMessage
+	}
+
+	if kind != "text" && trimmedText == "" {
+		trimmedText = "Сообщение"
 	}
 
 	parsedUserID, err := uuid.Parse(userID)
@@ -94,7 +102,7 @@ func (s *chatService) SendMessage(ctx context.Context, userID string, conversati
 		return domain.ChatMessage{}, fmt.Errorf("invalid conversation id: %w", err)
 	}
 
-	message, err := s.repo.SaveMessage(ctx, parsedConversationID, parsedUserID, trimmedText)
+	message, err := s.repo.SaveMessage(ctx, parsedConversationID, parsedUserID, trimmedText, kind, metadata)
 	if err != nil {
 		return domain.ChatMessage{}, err
 	}
@@ -110,6 +118,7 @@ func (s *chatService) SendMessage(ctx context.Context, userID string, conversati
 				"senderId":       message.SenderID.String(),
 				"kind":           message.Kind,
 				"text":           message.Body,
+				"metadata":       message.Metadata,
 				"createdAt":      message.CreatedAt.UTC().Format("2006-01-02T15:04:05Z07:00"),
 			},
 		})

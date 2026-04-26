@@ -1,30 +1,20 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, Image, Modal, SafeAreaView, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Alert, Image, KeyboardAvoidingView, Modal, Platform, SafeAreaView, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
 import {
   connectChatEvents,
   ensureDialog,
   getDialogMessages,
+  importSharedWorkout,
   markDialogRead,
   sendDialogMessage,
   type ChatMessage,
+  type SharedWorkoutMetadata,
 } from "@/services/chat-service";
+import { getUserWorkouts, type WorkoutSummary } from "@/services/fitness-service";
 import { getStoredUserId } from "@/services/session-service";
 import { colors } from "./theme";
-
-const FALLBACK_MESSAGES = [
-  { id: "f-1", senderId: "peer", text: "Привет! Пока чат не подключен к диалогу.", createdAt: new Date().toISOString() },
-  { id: "f-2", senderId: "peer", text: "Открой чат из списка диалогов, чтобы увидеть реальные сообщения.", createdAt: new Date().toISOString() },
-];
-
-const MY_WORKOUTS = [
-  "Спина + Плечи",
-  "Ноги и Кор",
-  "Грудь + Трицепс",
-  "Кардио + Мобилити",
-  "Фулбоди",
-];
 
 const WEEKDAYS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
 const MONTH_NAMES = [
@@ -77,20 +67,25 @@ export default function ChatScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ name?: string; avatar?: string; conversationId?: string; peerUserId?: string }>();
   const contactName = typeof params.name === "string" ? params.name : "Чат";
-  const avatar = typeof params.avatar === "string" ? params.avatar : "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&h=200&fit=crop";
+  const avatar = typeof params.avatar === "string" && params.avatar.trim().length > 0 ? params.avatar : "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&h=200&fit=crop";
   const initialConversationId = typeof params.conversationId === "string" ? params.conversationId : "";
   const peerUserId = typeof params.peerUserId === "string" ? params.peerUserId : "";
 
   const [isActionPopupOpen, setActionPopupOpen] = useState(false);
   const [isSharePopupOpen, setSharePopupOpen] = useState(false);
   const [isAssignPopupOpen, setAssignPopupOpen] = useState(false);
+  const [isSharedWorkoutDetailsOpen, setSharedWorkoutDetailsOpen] = useState(false);
   const [currentUserId, setCurrentUserId] = useState("");
   const [conversationId, setConversationId] = useState(initialConversationId);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [myWorkouts, setMyWorkouts] = useState<WorkoutSummary[]>([]);
+  const [isLoadingMyWorkouts, setIsLoadingMyWorkouts] = useState(false);
   const [isLoadingMessages, setIsLoadingMessages] = useState(true);
   const [messageText, setMessageText] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [selectedWorkout, setSelectedWorkout] = useState(MY_WORKOUTS[0]);
+  const [selectedWorkoutId, setSelectedWorkoutId] = useState("");
+  const [selectedSharedWorkout, setSelectedSharedWorkout] = useState<SharedWorkoutMetadata | null>(null);
+  const [isImportingSharedWorkout, setIsImportingSharedWorkout] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedHour, setSelectedHour] = useState(new Date().getHours());
   const [selectedMinute, setSelectedMinute] = useState(0);
@@ -103,6 +98,24 @@ export default function ChatScreen() {
   const openShareWorkout = () => {
     setActionPopupOpen(false);
     setSharePopupOpen(true);
+    if (!currentUserId || isLoadingMyWorkouts || myWorkouts.length > 0) {
+      return;
+    }
+
+    setIsLoadingMyWorkouts(true);
+    void getUserWorkouts(currentUserId)
+      .then((workouts) => {
+        setMyWorkouts(workouts);
+        if (workouts.length > 0) {
+          setSelectedWorkoutId(workouts[0].id);
+        }
+      })
+      .catch((loadError) => {
+        setError(loadError instanceof Error ? loadError.message : "Не удалось загрузить ваши тренировки.");
+      })
+      .finally(() => {
+        setIsLoadingMyWorkouts(false);
+      });
   };
 
   const openAssignWorkout = () => {
@@ -142,14 +155,83 @@ export default function ChatScreen() {
   };
 
   const onShareWorkout = () => {
+    const workoutToShare = myWorkouts.find((item) => item.id === selectedWorkoutId);
+    if (!workoutToShare || !currentUserId || !conversationId) {
+      Alert.alert("Нет тренировки", "Выберите тренировку для отправки.");
+      return;
+    }
+
+    const metadata: SharedWorkoutMetadata = {
+      type: "shared_workout",
+      title: workoutToShare.title,
+      exercises: workoutToShare.exercises.map((exercise) => ({
+        exerciseId: exercise.id,
+        name: exercise.name,
+        muscleGroup: exercise.muscle,
+        sets: exercise.sets,
+        reps: exercise.reps,
+        rest: exercise.restSeconds,
+        weight: exercise.weight,
+      })),
+    };
+
     setSharePopupOpen(false);
-    Alert.alert("Тренировка отправлена", `Вы поделились тренировкой \"${selectedWorkout}\"`);
+    void sendDialogMessage(currentUserId, conversationId, `Тренировка: ${workoutToShare.title}`, {
+      kind: "shared_workout",
+      metadata,
+    })
+      .then(() => loadMessages(false))
+      .catch((sendError) => {
+        setError(sendError instanceof Error ? sendError.message : "Не удалось отправить тренировку.");
+      });
   };
 
   const onAssignWorkout = () => {
     const dateLabel = `${selectedDate.getDate()} ${MONTH_NAMES[selectedDate.getMonth()]} ${selectedDate.getFullYear()}`;
     setAssignPopupOpen(false);
-    Alert.alert("Тренировка назначена", `${selectedWorkout}\nДата: ${dateLabel}\nВремя: ${formatTime(selectedHour, selectedMinute)}`);
+    const workoutTitle = myWorkouts.find((item) => item.id === selectedWorkoutId)?.title ?? "Тренировка";
+    Alert.alert("Тренировка назначена", `${workoutTitle}\nДата: ${dateLabel}\nВремя: ${formatTime(selectedHour, selectedMinute)}`);
+  };
+
+  const openSharedWorkoutDetails = (message: ChatMessage) => {
+    const metadata = message.metadata;
+    if (!metadata || typeof metadata !== "object") {
+      return;
+    }
+
+    const typed = metadata as SharedWorkoutMetadata;
+    if (typed.type !== "shared_workout" || !Array.isArray(typed.exercises)) {
+      return;
+    }
+
+    setSelectedSharedWorkout(typed);
+    setSharedWorkoutDetailsOpen(true);
+  };
+
+  const addSharedWorkoutToMe = async () => {
+    if (!currentUserId || !selectedSharedWorkout) {
+      return;
+    }
+
+    setIsImportingSharedWorkout(true);
+    try {
+      await importSharedWorkout(currentUserId, {
+        exercises: selectedSharedWorkout.exercises.map((exercise) => ({
+          exerciseId: exercise.exerciseId,
+          sets: exercise.sets,
+          reps: exercise.reps,
+          rest: exercise.rest,
+          weight: exercise.weight,
+        })),
+      });
+
+      setSharedWorkoutDetailsOpen(false);
+      Alert.alert("Добавлено", "Тренировка добавлена в ваш список.");
+    } catch (importError) {
+      Alert.alert("Ошибка", importError instanceof Error ? importError.message : "Не удалось добавить тренировку.");
+    } finally {
+      setIsImportingSharedWorkout(false);
+    }
   };
 
   const loadMessages = useCallback(
@@ -278,20 +360,13 @@ export default function ChatScreen() {
     }
   };
 
-  const renderMessages =
-    messages.length > 0
-      ? messages
-      : FALLBACK_MESSAGES.map((item) => ({
-          id: item.id,
-          conversationId: "",
-          senderId: item.senderId,
-          kind: "text",
-          text: item.text,
-          createdAt: item.createdAt,
-        }));
-
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background, paddingTop: 28 }}>
+    <KeyboardAvoidingView
+      style={{ flex: 1, backgroundColor: colors.background }}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 24 : 0}
+    >
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background, paddingTop: 28 }}>
       <View
         style={{
           flexDirection: "row",
@@ -345,7 +420,11 @@ export default function ChatScreen() {
 
         {isLoadingMessages ? <Text style={{ color: colors.textSecondary, fontSize: 14, textAlign: "center" }}>Загрузка сообщений...</Text> : null}
 
-        {renderMessages.map((message) => {
+        {!isLoadingMessages && messages.length === 0 ? (
+          <Text style={{ color: colors.textSecondary, fontSize: 14, textAlign: "center" }}>Сообщений пока нет.</Text>
+        ) : null}
+
+        {messages.map((message) => {
           const isMine = message.senderId === currentUserId;
           const parsedDate = new Date(message.createdAt);
           const timeLabel = Number.isNaN(parsedDate.getTime()) ? "--:--" : `${String(parsedDate.getHours()).padStart(2, "0")}:${String(parsedDate.getMinutes()).padStart(2, "0")}`;
@@ -359,7 +438,13 @@ export default function ChatScreen() {
                 marginBottom: 12,
               }}
             >
-              <View
+              <TouchableOpacity
+                activeOpacity={message.kind === "shared_workout" ? 0.85 : 1}
+                onPress={() => {
+                  if (message.kind === "shared_workout") {
+                    openSharedWorkoutDetails(message);
+                  }
+                }}
                 style={{
                   backgroundColor: isMine ? colors.accent : colors.thirdary,
                   borderRadius: 20,
@@ -369,8 +454,16 @@ export default function ChatScreen() {
                   borderBottomLeftRadius: isMine ? 20 : 6,
                 }}
               >
-                <Text style={{ color: colors.textPrimary, fontSize: 15, lineHeight: 21 }}>{message.text}</Text>
-              </View>
+                {message.kind === "shared_workout" ? (
+                  <>
+                    <Text style={{ color: colors.textSecondary, fontSize: 12, marginBottom: 5 }}>Поделился тренировкой</Text>
+                    <Text style={{ color: colors.textPrimary, fontSize: 15, lineHeight: 21, fontWeight: "700" }}>{message.text}</Text>
+                    <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 6 }}>Нажмите, чтобы открыть детали</Text>
+                  </>
+                ) : (
+                  <Text style={{ color: colors.textPrimary, fontSize: 15, lineHeight: 21 }}>{message.text}</Text>
+                )}
+              </TouchableOpacity>
               <Text
                 style={{
                   color: colors.textSecondary,
@@ -474,14 +567,16 @@ export default function ChatScreen() {
             <Text style={{ color: colors.textSecondary, fontSize: 13, marginBottom: 14 }}>Что отправить пользователю {contactName}</Text>
 
             <ScrollView showsVerticalScrollIndicator={false}>
-              {MY_WORKOUTS.map((workout) => {
-                const isSelected = selectedWorkout === workout;
+              {isLoadingMyWorkouts ? <Text style={{ color: colors.textSecondary }}>Загрузка...</Text> : null}
+
+              {myWorkouts.map((workout) => {
+                const isSelected = selectedWorkoutId === workout.id;
 
                 return (
                   <TouchableOpacity
-                    key={workout}
+                    key={workout.id}
                     activeOpacity={0.85}
-                    onPress={() => setSelectedWorkout(workout)}
+                    onPress={() => setSelectedWorkoutId(workout.id)}
                     style={{
                       borderRadius: 14,
                       paddingVertical: 12,
@@ -490,10 +585,12 @@ export default function ChatScreen() {
                       backgroundColor: isSelected ? colors.accent : "rgba(255,255,255,0.05)",
                     }}
                   >
-                    <Text style={{ color: colors.textPrimary, fontSize: 15, fontWeight: isSelected ? "700" : "500" }}>{workout}</Text>
+                    <Text style={{ color: colors.textPrimary, fontSize: 15, fontWeight: isSelected ? "700" : "500" }}>{workout.title}</Text>
                   </TouchableOpacity>
                 );
               })}
+
+              {!isLoadingMyWorkouts && myWorkouts.length === 0 ? <Text style={{ color: colors.textSecondary }}>У вас пока нет тренировок для отправки.</Text> : null}
             </ScrollView>
 
             <View style={{ flexDirection: "row", marginTop: 8, columnGap: 10 }}>
@@ -521,7 +618,9 @@ export default function ChatScreen() {
         <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "center", paddingHorizontal: 22 }}>
           <View style={{ backgroundColor: colors.thirdary, borderRadius: 18, padding: 16, borderWidth: 1, borderColor: "rgba(255,255,255,0.08)", maxHeight: "84%" }}>
             <Text style={{ color: colors.textPrimary, fontSize: 17, fontWeight: "700", marginBottom: 4 }}>Назначить тренировку</Text>
-            <Text style={{ color: colors.textSecondary, fontSize: 13, marginBottom: 12 }}>Тренировка: {selectedWorkout}</Text>
+            <Text style={{ color: colors.textSecondary, fontSize: 13, marginBottom: 12 }}>
+              Тренировка: {myWorkouts.find((item) => item.id === selectedWorkoutId)?.title ?? "Не выбрана"}
+            </Text>
 
             <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
               <TouchableOpacity activeOpacity={0.85} onPress={() => changeMonth(-1)} style={{ padding: 8 }}>
@@ -625,6 +724,50 @@ export default function ChatScreen() {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+
+      <Modal transparent visible={isSharedWorkoutDetailsOpen} animationType="slide" onRequestClose={() => setSharedWorkoutDetailsOpen(false)}>
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "center", paddingHorizontal: 22 }}>
+          <View style={{ backgroundColor: colors.thirdary, borderRadius: 18, padding: 16, borderWidth: 1, borderColor: "rgba(255,255,255,0.08)", maxHeight: "84%" }}>
+            <Text style={{ color: colors.textPrimary, fontSize: 17, fontWeight: "700", marginBottom: 4 }}>
+              {selectedSharedWorkout?.title ?? "Тренировка"}
+            </Text>
+            <Text style={{ color: colors.textSecondary, fontSize: 13, marginBottom: 12 }}>Детали тренировки</Text>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {(selectedSharedWorkout?.exercises ?? []).map((exercise) => (
+                <View key={`${exercise.exerciseId}-${exercise.name}`} style={{ backgroundColor: "rgba(255,255,255,0.05)", borderRadius: 12, padding: 10, marginBottom: 8 }}>
+                  <Text style={{ color: colors.textPrimary, fontSize: 15, fontWeight: "600" }}>{exercise.name}</Text>
+                  <Text style={{ color: colors.textSecondary, fontSize: 13, marginTop: 4 }}>
+                    {exercise.sets}x{exercise.reps} • отдых {exercise.rest}с • вес {exercise.weight ?? 0}
+                  </Text>
+                </View>
+              ))}
+            </ScrollView>
+
+            <View style={{ flexDirection: "row", columnGap: 10, marginTop: 10 }}>
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={() => setSharedWorkoutDetailsOpen(false)}
+                style={{ flex: 1, borderRadius: 12, paddingVertical: 12, alignItems: "center", backgroundColor: "rgba(255,255,255,0.08)" }}
+              >
+                <Text style={{ color: colors.textPrimary, fontSize: 14, fontWeight: "600" }}>Закрыть</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                activeOpacity={0.85}
+                disabled={isImportingSharedWorkout}
+                onPress={() => {
+                  void addSharedWorkoutToMe();
+                }}
+                style={{ flex: 1, borderRadius: 12, paddingVertical: 12, alignItems: "center", backgroundColor: colors.accent, opacity: isImportingSharedWorkout ? 0.7 : 1 }}
+              >
+                <Text style={{ color: colors.textPrimary, fontSize: 14, fontWeight: "700" }}>{isImportingSharedWorkout ? "Добавление..." : "Добавить себе"}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+      </SafeAreaView>
+    </KeyboardAvoidingView>
   );
 }

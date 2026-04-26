@@ -97,3 +97,31 @@ func (h *WorkoutHandler) GetUserWorkouts(c *gin.Context) {
 
 	c.JSON(http.StatusOK, response)
 }
+
+func (h *WorkoutHandler) ImportSharedWorkout(c *gin.Context) {
+	rawUserID, exists := c.Get(middleware.ContextUserIDKey)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	userID, ok := rawUserID.(string)
+	if !ok || userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	var req dto.ImportSharedWorkoutRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	workout, err := h.service.ImportSharedWorkout(c.Request.Context(), userID, req)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, utils.MapWorkoutToDTO(workout))
+}

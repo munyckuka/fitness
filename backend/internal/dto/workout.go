@@ -36,3 +36,15 @@ type WorkoutExerciseDTO struct {
 	Rest        int     `json:"rest"`
 	Weight      float64 `json:"weight"`
 }
+
+type ImportSharedWorkoutRequest struct {
+	Exercises []ImportSharedWorkoutExerciseRequest `json:"exercises" binding:"required"`
+}
+
+type ImportSharedWorkoutExerciseRequest struct {
+	ExerciseID string  `json:"exerciseId" binding:"required"`
+	Sets       int     `json:"sets"`
+	Reps       int     `json:"reps"`
+	Rest       int     `json:"rest"`
+	Weight     float64 `json:"weight"`
+}

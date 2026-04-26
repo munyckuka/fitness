@@ -1,8 +1,10 @@
 package service
 
 import (
+	"backend/internal/dto"
 	"backend/internal/utils"
 	"context"
+	"errors"
 	"time"
 
 	"backend/internal/domain"
@@ -149,4 +151,45 @@ func (s *workoutService) CompleteWorkout(
 
 func (s *workoutService) GetUserWorkouts(ctx context.Context, userID string) ([]domain.Workout, error) {
 	return s.WorkoutRepo.GetByUser(ctx, userID)
+}
+
+func (s *workoutService) ImportSharedWorkout(ctx context.Context, userID string, req dto.ImportSharedWorkoutRequest) (domain.Workout, error) {
+	if len(req.Exercises) == 0 {
+		return domain.Workout{}, errors.New("shared workout has no exercises")
+	}
+
+	parsedUserID, err := uuid.Parse(userID)
+	if err != nil {
+		return domain.Workout{}, err
+	}
+
+	exercises := make([]domain.WorkoutExercise, 0, len(req.Exercises))
+	for _, item := range req.Exercises {
+		exerciseID, parseErr := uuid.Parse(item.ExerciseID)
+		if parseErr != nil {
+			return domain.Workout{}, parseErr
+		}
+
+		exercises = append(exercises, domain.WorkoutExercise{
+			ExerciseID: exerciseID,
+			Sets:       item.Sets,
+			Reps:       item.Reps,
+			Rest:       item.Rest,
+			Weight:     item.Weight,
+		})
+	}
+
+	workout := domain.Workout{
+		ID:        uuid.New(),
+		UserID:    parsedUserID,
+		Exercises: exercises,
+		Status:    domain.Created,
+		CreatedAt: time.Now(),
+	}
+
+	if err := s.WorkoutRepo.Save(ctx, workout); err != nil {
+		return domain.Workout{}, err
+	}
+
+	return workout, nil
 }

@@ -223,17 +223,25 @@ func (r *ChatRepository) ListMessages(ctx context.Context, userID uuid.UUID, con
 	return messages, nil
 }
 
-func (r *ChatRepository) SaveMessage(ctx context.Context, conversationID uuid.UUID, senderID uuid.UUID, text string) (domain.ChatMessage, error) {
+func (r *ChatRepository) SaveMessage(ctx context.Context, conversationID uuid.UUID, senderID uuid.UUID, text string, kind string, metadata []byte) (domain.ChatMessage, error) {
 	if err := r.ensureParticipant(ctx, senderID, conversationID); err != nil {
 		return domain.ChatMessage{}, err
+	}
+
+	if kind == "" {
+		kind = "text"
+	}
+	if len(metadata) == 0 {
+		metadata = []byte("{}")
 	}
 
 	message := domain.ChatMessage{
 		ID:             uuid.New(),
 		ConversationID: conversationID,
 		SenderID:       senderID,
-		Kind:           "text",
+		Kind:           kind,
 		Body:           text,
+		Metadata:       metadata,
 	}
 
 	tx, err := r.db.BeginTx(ctx, nil)
@@ -244,9 +252,9 @@ func (r *ChatRepository) SaveMessage(ctx context.Context, conversationID uuid.UU
 
 	if err := tx.QueryRowContext(ctx, `
 		INSERT INTO messages (id, conversation_id, sender_id, kind, body, metadata, created_at)
-		VALUES ($1, $2, $3, $4, $5, '{}'::jsonb, NOW())
+		VALUES ($1, $2, $3, $4, $5, $6::jsonb, NOW())
 		RETURNING created_at
-	`, message.ID, message.ConversationID, message.SenderID, message.Kind, message.Body).Scan(&message.CreatedAt); err != nil {
+	`, message.ID, message.ConversationID, message.SenderID, message.Kind, message.Body, string(metadata)).Scan(&message.CreatedAt); err != nil {
 		return domain.ChatMessage{}, err
 	}
 

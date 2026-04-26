@@ -10,6 +10,7 @@ type WorkoutService interface {
 	GenerateWorkout(ctx context.Context, userID string) (domain.Workout, error)
 	CompleteWorkout(ctx context.Context, userID string, workoutID string, difficulty int, log domain.WorkoutLog) error
 	GetUserWorkouts(ctx context.Context, userID string) ([]domain.Workout, error)
+	ImportSharedWorkout(ctx context.Context, userID string, req dto.ImportSharedWorkoutRequest) (domain.Workout, error)
 }
 
 type UserService interface {
@@ -35,6 +36,6 @@ type ChatService interface {
 	ListDialogs(ctx context.Context, userID string) ([]domain.ChatDialog, error)
 	EnsureDialog(ctx context.Context, userID string, peerUserID string) (domain.ChatDialog, error)
 	ListMessages(ctx context.Context, userID string, conversationID string, limit int, beforeMessageID string) ([]domain.ChatMessage, error)
-	SendMessage(ctx context.Context, userID string, conversationID string, text string) (domain.ChatMessage, error)
+	SendMessage(ctx context.Context, userID string, conversationID string, text string, kind string, metadata []byte) (domain.ChatMessage, error)
 	MarkRead(ctx context.Context, userID string, conversationID string, messageID string) error
 }

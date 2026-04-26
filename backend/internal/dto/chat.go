@@ -1,11 +1,15 @@
 package dto
 
+import "encoding/json"
+
 type EnsureDialogRequest struct {
 	PeerUserID string `json:"peerUserId" binding:"required"`
 }
 
 type SendMessageRequest struct {
-	Text string `json:"text" binding:"required"`
+	Text     string          `json:"text"`
+	Kind     string          `json:"kind"`
+	Metadata json.RawMessage `json:"metadata"`
 }
 
 type MarkReadRequest struct {
@@ -23,12 +27,13 @@ type ChatDialogResponse struct {
 }
 
 type ChatMessageResponse struct {
-	ID             string `json:"id"`
-	ConversationID string `json:"conversationId"`
-	SenderID       string `json:"senderId"`
-	Kind           string `json:"kind"`
-	Text           string `json:"text"`
-	CreatedAt      string `json:"createdAt"`
+	ID             string          `json:"id"`
+	ConversationID string          `json:"conversationId"`
+	SenderID       string          `json:"senderId"`
+	Kind           string          `json:"kind"`
+	Text           string          `json:"text"`
+	Metadata       json.RawMessage `json:"metadata,omitempty"`
+	CreatedAt      string          `json:"createdAt"`
 }
 
 type ChatEventResponse struct {

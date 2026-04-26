@@ -55,7 +55,7 @@ type ChatRepository interface {
 	ListDialogs(ctx context.Context, userID uuid.UUID) ([]domain.ChatDialog, error)
 	GetOrCreateDialog(ctx context.Context, userID uuid.UUID, peerUserID uuid.UUID) (domain.ChatDialog, error)
 	ListMessages(ctx context.Context, userID uuid.UUID, conversationID uuid.UUID, limit int, beforeMessageID *uuid.UUID) ([]domain.ChatMessage, error)
-	SaveMessage(ctx context.Context, conversationID uuid.UUID, senderID uuid.UUID, text string) (domain.ChatMessage, error)
+	SaveMessage(ctx context.Context, conversationID uuid.UUID, senderID uuid.UUID, text string, kind string, metadata []byte) (domain.ChatMessage, error)
 	MarkReadUpTo(ctx context.Context, userID uuid.UUID, conversationID uuid.UUID, messageID uuid.UUID) error
 	GetLatestMessageID(ctx context.Context, userID uuid.UUID, conversationID uuid.UUID) (uuid.UUID, error)
 	GetDialogParticipantIDs(ctx context.Context, conversationID uuid.UUID) ([]uuid.UUID, error)
