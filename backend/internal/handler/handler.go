@@ -2,7 +2,7 @@ package handler
 
 import "github.com/gin-gonic/gin"
 
-func SetupRoutes(r *gin.Engine, authMiddleware gin.HandlerFunc, authHandler *AuthHandler, userHandler *UserHandler, workoutHandler *WorkoutHandler, progressHandler *ProgressHandler) {
+func SetupRoutes(r *gin.Engine, authMiddleware gin.HandlerFunc, authHandler *AuthHandler, userHandler *UserHandler, workoutHandler *WorkoutHandler, progressHandler *ProgressHandler, chatHandler *ChatHandler) {
 
 	api := r.Group("/api/v1")
 
@@ -34,6 +34,16 @@ func SetupRoutes(r *gin.Engine, authMiddleware gin.HandlerFunc, authHandler *Aut
 		progress := api.Group("/progress")
 		{
 			progress.GET("/:id", progressHandler.GetProgress)
+		}
+
+		chats := api.Group("/chats")
+		{
+			chats.GET("/dialogs", authMiddleware, chatHandler.ListDialogs)
+			chats.POST("/dialogs", authMiddleware, chatHandler.EnsureDialog)
+			chats.GET("/dialogs/:conversationId/messages", authMiddleware, chatHandler.ListMessages)
+			chats.POST("/dialogs/:conversationId/messages", authMiddleware, chatHandler.SendMessage)
+			chats.POST("/dialogs/:conversationId/read", authMiddleware, chatHandler.MarkRead)
+			chats.GET("/events", authMiddleware, chatHandler.StreamEvents)
 		}
 	}
 }

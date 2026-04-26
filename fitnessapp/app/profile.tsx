@@ -3,6 +3,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { ActivityIndicator, Alert, Image, SafeAreaView, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { useRouter } from "expo-router";
 import { getUser, getUserWorkouts, type UserProfile, type WorkoutSummary } from "@/services/fitness-service";
+import { getChatDialogs, type ChatDialog } from "@/services/chat-service";
 import { getStoredUserId, setStoredWorkoutId, clearStoredUserId } from "@/services/session-service";
 import { colors } from "./theme";
 
@@ -26,6 +27,8 @@ export default function Profile() {
   const router = useRouter();
   const [user, setUser] = useState<UserProfile | null>(null);
   const [workouts, setWorkouts] = useState<WorkoutSummary[]>([]);
+  const [dialogs, setDialogs] = useState<ChatDialog[]>([]);
+  const [isLoadingDialogs, setIsLoadingDialogs] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -43,7 +46,8 @@ export default function Profile() {
           return;
         }
 
-        const [loadedUser, loadedWorkouts] = await Promise.all([getUser(userId), getUserWorkouts(userId)]);
+        setIsLoadingDialogs(true);
+        const [loadedUser, loadedWorkouts, loadedDialogs] = await Promise.all([getUser(userId), getUserWorkouts(userId), getChatDialogs(userId)]);
 
         if (!isMounted) {
           return;
@@ -51,6 +55,7 @@ export default function Profile() {
 
         setUser(loadedUser);
         setWorkouts(loadedWorkouts);
+        setDialogs(Array.isArray(loadedDialogs) ? loadedDialogs : []);
       } catch (loadError) {
         if (isMounted) {
           setError(loadError instanceof Error ? loadError.message : "Не удалось загрузить профиль.");
@@ -58,6 +63,7 @@ export default function Profile() {
       } finally {
         if (isMounted) {
           setIsLoading(false);
+          setIsLoadingDialogs(false);
         }
       }
     };
@@ -70,6 +76,35 @@ export default function Profile() {
   }, []);
 
   const primaryWorkout = workouts[0] ?? null;
+  const resolveAvatar = (seed: string) => {
+    if (!seed) {
+      return AVATARS[0];
+    }
+
+    const hash = seed
+      .split("")
+      .reduce((acc, symbol) => acc + symbol.charCodeAt(0), 0);
+
+    return AVATARS[hash % AVATARS.length];
+  };
+
+  const chatItems = dialogs.length
+    ? dialogs.map((dialog) => ({
+        key: dialog.conversationId,
+        name: dialog.peerName,
+        message: dialog.lastMessageText || "Начните диалог",
+        avatar: resolveAvatar(dialog.peerUserId),
+        conversationId: dialog.conversationId,
+        peerUserId: dialog.peerUserId,
+      }))
+    : CHAT_PREVIEW.map((chat) => ({
+        key: chat.name,
+        name: chat.name,
+        message: chat.message,
+        avatar: chat.avatar,
+        conversationId: "",
+        peerUserId: "",
+      }));
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background, paddingTop: 40 }}>
@@ -220,9 +255,11 @@ export default function Profile() {
 
           <View style={{ width: "100%", height: 2, backgroundColor: "#D8D8D8", marginTop: 8 }} />
 
-          {CHAT_PREVIEW.map((chat) => (
+          {isLoadingDialogs ? <ActivityIndicator color={colors.accent} style={{ marginTop: 14 }} /> : null}
+
+          {chatItems.map((chat) => (
             <TouchableOpacity
-              key={chat.name}
+              key={chat.key}
               activeOpacity={0.8}
               onPress={() =>
                 router.push({
@@ -230,6 +267,8 @@ export default function Profile() {
                   params: {
                     name: chat.name,
                     avatar: chat.avatar,
+                    conversationId: chat.conversationId,
+                    peerUserId: chat.peerUserId,
                   },
                 })
               }

@@ -1,5 +1,8 @@
-import { Image, SafeAreaView, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { useEffect, useState } from "react";
+import { ActivityIndicator, Image, SafeAreaView, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { useRouter } from "expo-router";
+import { getStoredUserId } from "@/services/session-service";
+import { getChatDialogs, type ChatDialog } from "@/services/chat-service";
 import { colors } from "./theme";
 
 const AVATARS = [
@@ -20,6 +23,70 @@ const CHAT_PREVIEW = [
 
 export default function Community() {
   const router = useRouter();
+  const [dialogs, setDialogs] = useState<ChatDialog[]>([]);
+  const [isLoadingDialogs, setIsLoadingDialogs] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadDialogs = async () => {
+      try {
+        const userId = await getStoredUserId();
+        if (!userId) {
+          return;
+        }
+
+        const items = await getChatDialogs(userId);
+        if (isMounted) {
+          setDialogs(Array.isArray(items) ? items : []);
+        }
+      } catch {
+        if (isMounted) {
+          setDialogs([]);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingDialogs(false);
+        }
+      }
+    };
+
+    void loadDialogs();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const resolveAvatar = (seed: string) => {
+    if (!seed) {
+      return AVATARS[0];
+    }
+
+    const hash = seed
+      .split("")
+      .reduce((acc, symbol) => acc + symbol.charCodeAt(0), 0);
+
+    return AVATARS[hash % AVATARS.length];
+  };
+
+  const chatItems = dialogs.length
+    ? dialogs.map((dialog) => ({
+        key: dialog.conversationId,
+        name: dialog.peerName,
+        message: dialog.lastMessageText || "Начните диалог",
+        avatar: resolveAvatar(dialog.peerUserId),
+        conversationId: dialog.conversationId,
+        peerUserId: dialog.peerUserId,
+      }))
+    : CHAT_PREVIEW.map((chat) => ({
+        key: chat.name,
+        name: chat.name,
+        message: chat.message,
+        avatar: chat.avatar,
+        conversationId: "",
+        peerUserId: "",
+      }));
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background, paddingTop: 20 }}>
@@ -83,9 +150,11 @@ export default function Community() {
 
           <View style={{ width: "100%", height: 2, backgroundColor: "#D8D8D8", marginTop: 8 }} />
 
-          {CHAT_PREVIEW.map((chat) => (
+          {isLoadingDialogs ? <ActivityIndicator color={colors.accent} style={{ marginTop: 14 }} /> : null}
+
+          {chatItems.map((chat) => (
             <TouchableOpacity
-              key={chat.name}
+              key={chat.key}
               activeOpacity={0.8}
               onPress={() =>
                 router.push({
@@ -93,6 +162,8 @@ export default function Community() {
                   params: {
                     name: chat.name,
                     avatar: chat.avatar,
+                    conversationId: chat.conversationId,
+                    peerUserId: chat.peerUserId,
                   },
                 })
               }

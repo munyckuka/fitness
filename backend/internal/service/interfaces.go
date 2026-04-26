@@ -29,3 +29,11 @@ type ProgressService interface {
 	GetProgress(ctx context.Context, userID string) (domain.Progress, error)
 	UpdateAfterWorkout(ctx context.Context, userID string, difficulty int, log domain.WorkoutLog) error
 }
+
+type ChatService interface {
+	ListDialogs(ctx context.Context, userID string) ([]domain.ChatDialog, error)
+	EnsureDialog(ctx context.Context, userID string, peerUserID string) (domain.ChatDialog, error)
+	ListMessages(ctx context.Context, userID string, conversationID string, limit int, beforeMessageID string) ([]domain.ChatMessage, error)
+	SendMessage(ctx context.Context, userID string, conversationID string, text string) (domain.ChatMessage, error)
+	MarkRead(ctx context.Context, userID string, conversationID string, messageID string) error
+}
