@@ -156,7 +156,7 @@ export async function connectChatEvents(
 }
 
 async function requestWithAuth<T>(path: string, options: RequestInit, legacyUserIdForLogin?: string) {
-  const accessToken = await ensureAccessToken(legacyUserIdForLogin);
+  const accessToken = await ensureAccessToken();
 
   try {
     return await apiRequest<T>(path, {

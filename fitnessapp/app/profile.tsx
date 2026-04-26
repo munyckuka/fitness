@@ -46,8 +46,7 @@ export default function Profile() {
           return;
         }
 
-        setIsLoadingDialogs(true);
-        const [loadedUser, loadedWorkouts, loadedDialogs] = await Promise.all([getUser(userId), getUserWorkouts(userId), getChatDialogs(userId)]);
+        const [loadedUser, loadedWorkouts] = await Promise.all([getUser(userId), getUserWorkouts(userId)]);
 
         if (!isMounted) {
           return;
@@ -55,7 +54,6 @@ export default function Profile() {
 
         setUser(loadedUser);
         setWorkouts(loadedWorkouts);
-        setDialogs(Array.isArray(loadedDialogs) ? loadedDialogs : []);
       } catch (loadError) {
         if (isMounted) {
           setError(loadError instanceof Error ? loadError.message : "Не удалось загрузить профиль.");
@@ -63,6 +61,27 @@ export default function Profile() {
       } finally {
         if (isMounted) {
           setIsLoading(false);
+        }
+      }
+
+      try {
+        const userId = await getStoredUserId();
+        if (!isMounted || !userId) {
+          return;
+        }
+
+        setIsLoadingDialogs(true);
+        const loadedDialogs = await getChatDialogs(userId);
+        if (isMounted) {
+          setDialogs(Array.isArray(loadedDialogs) ? loadedDialogs : []);
+        }
+      } catch {
+        if (isMounted) {
+          // Chat section is optional for profile screen; keep profile data visible.
+          setDialogs([]);
+        }
+      } finally {
+        if (isMounted) {
           setIsLoadingDialogs(false);
         }
       }
