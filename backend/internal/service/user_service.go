@@ -4,6 +4,7 @@ import (
 	"backend/internal/dto"
 	"backend/internal/utils"
 	"context"
+	"strings"
 
 	"backend/internal/domain"
 	"backend/internal/repository"
@@ -42,4 +43,17 @@ func (s *userService) Update(ctx context.Context, id string, req dto.UpdateUserR
 
 func (s *userService) GetByID(ctx context.Context, id string) (domain.User, error) {
 	return s.repo.GetByID(ctx, id)
+}
+
+func (s *userService) SearchByLogin(ctx context.Context, currentUserID string, loginQuery string, limit int) ([]domain.User, error) {
+	trimmedQuery := strings.TrimSpace(loginQuery)
+	if trimmedQuery == "" {
+		return []domain.User{}, nil
+	}
+
+	if limit <= 0 || limit > 20 {
+		limit = 10
+	}
+
+	return s.repo.SearchByLogin(ctx, currentUserID, trimmedQuery, limit)
 }

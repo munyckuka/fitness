@@ -16,6 +16,7 @@ type UserService interface {
 	Create(ctx context.Context, req dto.UpdateUserRequest) (domain.User, error)
 	Update(ctx context.Context, id string, req dto.UpdateUserRequest) (domain.User, error)
 	GetByID(ctx context.Context, id string) (domain.User, error)
+	SearchByLogin(ctx context.Context, currentUserID string, loginQuery string, limit int) ([]domain.User, error)
 }
 
 type AuthService interface {

@@ -115,3 +115,36 @@ func (h *UserHandler) UpdateMe(c *gin.Context) {
 
 	c.JSON(http.StatusOK, utils.MapUserToDTO(updated))
 }
+
+func (h *UserHandler) SearchByLogin(c *gin.Context) {
+	rawUserID, exists := c.Get(middleware.ContextUserIDKey)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	currentUserID, ok := rawUserID.(string)
+	if !ok || currentUserID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	loginQuery := c.Query("login")
+	if loginQuery == "" {
+		c.JSON(http.StatusOK, []dto.UserResponse{})
+		return
+	}
+
+	users, err := h.service.SearchByLogin(c.Request.Context(), currentUserID, loginQuery, 10)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	response := make([]dto.UserResponse, 0, len(users))
+	for _, user := range users {
+		response = append(response, utils.MapUserToDTO(user))
+	}
+
+	c.JSON(http.StatusOK, response)
+}

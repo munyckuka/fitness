@@ -156,6 +156,47 @@ func (r *UserRepository) GetByLogin(ctx context.Context, login string) (domain.U
 	return user, nil
 }
 
+func (r *UserRepository) SearchByLogin(ctx context.Context, currentUserID string, loginQuery string, limit int) ([]domain.User, error) {
+	if limit <= 0 {
+		limit = 10
+	}
+
+	query := `
+	SELECT id, name, login, age, height, weight, goal, level, frequency
+	FROM users
+	WHERE id::text <> $1
+	  AND login ILIKE $2
+	ORDER BY login ASC
+	LIMIT $3
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, currentUserID, loginQuery+"%", limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	users := make([]domain.User, 0)
+	for rows.Next() {
+		var user domain.User
+		var goalStr string
+
+		if err := rows.Scan(&user.ID, &user.Name, &user.Login, &user.Age, &user.Height, &user.Weight, &goalStr, &user.FitnessLevel, &user.Frequency); err != nil {
+			return nil, err
+		}
+
+		user.FitnessGoal = domain.Goal(goalStr)
+		user.Equipment, err = r.getUserEquipment(ctx, user.ID)
+		if err != nil {
+			return nil, err
+		}
+
+		users = append(users, user)
+	}
+
+	return users, rows.Err()
+}
+
 func (r *UserRepository) getUserEquipment(ctx context.Context, userID uuid.UUID) ([]string, error) {
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT e.name

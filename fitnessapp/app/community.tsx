@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Image, SafeAreaView, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Image, SafeAreaView, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { useRouter } from "expo-router";
 import { getStoredUserId } from "@/services/session-service";
-import { getChatDialogs, type ChatDialog } from "@/services/chat-service";
+import { getChatDialogs, searchUsersByLogin, type ChatDialog, type ChatUserSearchResult } from "@/services/chat-service";
 import { colors } from "./theme";
 
 const AVATARS = [
@@ -25,6 +25,11 @@ export default function Community() {
   const router = useRouter();
   const [dialogs, setDialogs] = useState<ChatDialog[]>([]);
   const [isLoadingDialogs, setIsLoadingDialogs] = useState(true);
+  const [currentUserId, setCurrentUserId] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<ChatUserSearchResult[]>([]);
+  const [isSearchingUsers, setIsSearchingUsers] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -35,6 +40,8 @@ export default function Community() {
         if (!userId) {
           return;
         }
+
+        setCurrentUserId(userId);
 
         const items = await getChatDialogs(userId);
         if (isMounted) {
@@ -88,6 +95,33 @@ export default function Community() {
         peerUserId: "",
       }));
 
+  const handleSearchUsers = async () => {
+    const trimmedQuery = searchQuery.trim().replace(/^@+/, "");
+    if (!trimmedQuery) {
+      setSearchResults([]);
+      setSearchError("Введите логин для поиска.");
+      return;
+    }
+
+    if (!currentUserId) {
+      setSearchError("Требуется авторизация.");
+      return;
+    }
+
+    setIsSearchingUsers(true);
+    setSearchError(null);
+
+    try {
+      const users = await searchUsersByLogin(currentUserId, trimmedQuery);
+      setSearchResults(Array.isArray(users) ? users : []);
+    } catch (error) {
+      setSearchResults([]);
+      setSearchError(error instanceof Error ? error.message : "Не удалось выполнить поиск.");
+    } finally {
+      setIsSearchingUsers(false);
+    }
+  };
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background, paddingTop: 20 }}>
       <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 140 }} showsVerticalScrollIndicator={false}>
@@ -95,12 +129,93 @@ export default function Community() {
           Сообщество
         </Text>
 
-        <View style={{ backgroundColor: colors.thirdary, borderRadius: 20, padding: 14 }}>
-          <Image
-            source={{ uri: "https://static-maps.yandex.ru/1.x/?lang=ru_RU&ll=37.620070,55.753630&z=13&l=map&size=650,430" }}
-            style={{ width: "100%", height: 360, borderRadius: 14 }}
-            resizeMode="cover"
-          />
+        <View style={{ backgroundColor: colors.thirdary, borderRadius: 20, padding: 16 }}>
+          <Text style={{ color: colors.textPrimary, fontSize: 20, fontWeight: "500", marginBottom: 10 }}>
+            Поиск по логину
+          </Text>
+          <Text style={{ color: colors.textSecondary, fontSize: 14, marginBottom: 12 }}>
+            Найдите пользователя и сразу начните переписку
+          </Text>
+
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+            <TextInput
+              placeholder="Введите логин"
+              placeholderTextColor={colors.textSecondary}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              autoCapitalize="none"
+              autoCorrect={false}
+              style={{
+                flex: 1,
+                backgroundColor: colors.background,
+                color: colors.textPrimary,
+                borderRadius: 14,
+                paddingHorizontal: 14,
+                paddingVertical: 12,
+                fontSize: 15,
+              }}
+            />
+
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => {
+                void handleSearchUsers();
+              }}
+              style={{
+                backgroundColor: colors.accent,
+                borderRadius: 14,
+                paddingHorizontal: 14,
+                paddingVertical: 12,
+              }}
+            >
+              <Text style={{ color: colors.textPrimary, fontSize: 14, fontWeight: "700" }}>Найти</Text>
+            </TouchableOpacity>
+          </View>
+
+          {isSearchingUsers ? <ActivityIndicator color={colors.accent} style={{ marginTop: 12 }} /> : null}
+          {searchError ? <Text style={{ color: "#FF8A80", marginTop: 10 }}>{searchError}</Text> : null}
+
+          {searchResults.map((user) => {
+            const avatar = resolveAvatar(user.id);
+
+            return (
+              <TouchableOpacity
+                key={user.id}
+                activeOpacity={0.85}
+                onPress={() =>
+                  router.push({
+                    pathname: "/chat",
+                    params: {
+                      name: user.name || user.login,
+                      avatar,
+                      peerUserId: user.id,
+                    },
+                  })
+                }
+                style={{
+                  marginTop: 12,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  backgroundColor: "rgba(255,255,255,0.04)",
+                  borderRadius: 14,
+                  padding: 10,
+                }}
+              >
+                <Image source={{ uri: avatar }} style={{ width: 46, height: 46, borderRadius: 23, marginRight: 10 }} />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: "600" }}>{user.name || "Пользователь"}</Text>
+                  <Text style={{ color: colors.textSecondary, fontSize: 13, marginTop: 2 }}>@{user.login}</Text>
+                </View>
+                <View style={{ backgroundColor: colors.secondary, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6 }}>
+                  <Text style={{ color: colors.textPrimary, fontSize: 12, fontWeight: "600" }}>Написать</Text>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+
+          {!isSearchingUsers && searchQuery.trim().length > 0 && searchResults.length === 0 && !searchError ? (
+            <Text style={{ color: colors.textSecondary, marginTop: 10 }}>Пользователи не найдены.</Text>
+          ) : null}
         </View>
 
         <View style={{ backgroundColor: colors.thirdary, borderRadius: 20, padding: 18, marginTop: 16 }}>

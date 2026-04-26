@@ -19,6 +19,7 @@ func SetupRoutes(r *gin.Engine, authMiddleware gin.HandlerFunc, authHandler *Aut
 		{
 			users.GET("/me", authMiddleware, userHandler.GetMe)
 			users.PUT("/me", authMiddleware, userHandler.UpdateMe)
+			users.GET("/search", authMiddleware, userHandler.SearchByLogin)
 			users.POST("/", userHandler.CreateUser)
 			users.GET("/:id", userHandler.GetUser)
 			users.PUT("/:id", userHandler.UpdateUser)

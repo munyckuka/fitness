@@ -26,6 +26,7 @@ type ProgressRepository interface {
 type UserRepository interface {
 	GetByID(ctx context.Context, id string) (domain.User, error)
 	GetByLogin(ctx context.Context, login string) (domain.User, error)
+	SearchByLogin(ctx context.Context, currentUserID string, loginQuery string, limit int) ([]domain.User, error)
 	Create(ctx context.Context, user domain.User) (domain.User, error)
 	Update(ctx context.Context, user domain.User) (domain.User, error)
 }

@@ -28,6 +28,12 @@ export type ChatEvent = {
   readMessageId?: string;
 };
 
+export type ChatUserSearchResult = {
+  id: string;
+  name: string;
+  login: string;
+};
+
 export async function getChatDialogs(userId: string) {
   return requestWithAuth<ChatDialog[]>("/chats/dialogs", { method: "GET" }, userId);
 }
@@ -82,6 +88,15 @@ export async function markDialogRead(userId: string, conversationId: string, mes
     },
     userId,
   );
+}
+
+export async function searchUsersByLogin(userId: string, loginQuery: string) {
+  const query = encodeURIComponent(loginQuery.trim());
+  if (!query) {
+    return [] as ChatUserSearchResult[];
+  }
+
+  return requestWithAuth<ChatUserSearchResult[]>(`/users/search?login=${query}`, { method: "GET" }, userId);
 }
 
 export async function connectChatEvents(
