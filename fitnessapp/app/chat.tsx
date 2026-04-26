@@ -9,10 +9,12 @@ import {
   importSharedWorkout,
   markDialogRead,
   sendDialogMessage,
+  type AssignedWorkoutMetadata,
   type ChatMessage,
   type SharedWorkoutMetadata,
 } from "@/services/chat-service";
 import { getUserWorkouts, type WorkoutSummary } from "@/services/fitness-service";
+import { scheduleAssignedWorkoutNotifications } from "@/services/notifications-service";
 import { getStoredUserId } from "@/services/session-service";
 import { colors } from "./theme";
 
@@ -31,6 +33,102 @@ const MONTH_NAMES = [
   "Ноябрь",
   "Декабрь",
 ];
+
+function toNumberOrZero(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+
+  return 0;
+}
+
+function normalizeAssignedWorkoutMetadata(metadata: unknown): AssignedWorkoutMetadata | null {
+  if (!metadata || typeof metadata !== "object") {
+    return null;
+  }
+
+  const raw = metadata as Record<string, unknown>;
+  const scheduledAt = typeof raw.scheduledAt === "string"
+    ? raw.scheduledAt
+    : typeof raw.scheduled_at === "string"
+      ? raw.scheduled_at
+      : "";
+
+  if (!scheduledAt) {
+    return null;
+  }
+
+  const parsedDate = new Date(scheduledAt);
+  if (Number.isNaN(parsedDate.getTime())) {
+    return null;
+  }
+
+  return {
+    type: "assigned_workout",
+    scheduledAt: parsedDate.toISOString(),
+  };
+}
+function normalizeSharedWorkoutMetadata(metadata: unknown): SharedWorkoutMetadata | null {
+  if (!metadata || typeof metadata !== "object") {
+    return null;
+  }
+
+  const raw = metadata as Record<string, unknown>;
+  const rawExercises = Array.isArray(raw.exercises) ? raw.exercises : [];
+
+  const exercises: SharedWorkoutMetadata["exercises"] = [];
+  for (const entry of rawExercises) {
+    if (!entry || typeof entry !== "object") {
+      continue;
+    }
+
+    const item = entry as Record<string, unknown>;
+    const exerciseId = typeof item.exerciseId === "string"
+      ? item.exerciseId
+      : typeof item.exercise_id === "string"
+        ? item.exercise_id
+        : "";
+    if (!exerciseId) {
+      continue;
+    }
+
+    const name = typeof item.name === "string" ? item.name : "Упражнение";
+    const muscleGroup = typeof item.muscleGroup === "string"
+      ? item.muscleGroup
+      : typeof item.muscle_group === "string"
+        ? item.muscle_group
+        : "";
+
+    exercises.push({
+      exerciseId,
+      name,
+      muscleGroup,
+      sets: toNumberOrZero(item.sets),
+      reps: toNumberOrZero(item.reps),
+      rest: toNumberOrZero(item.rest ?? item.restSeconds ?? item.rest_seconds),
+      weight: toNumberOrZero(item.weight),
+    });
+  }
+
+  if (exercises.length === 0) {
+    return null;
+  }
+
+  const title = typeof raw.title === "string" && raw.title.trim().length > 0 ? raw.title.trim() : "Тренировка";
+
+  return {
+    type: "shared_workout",
+    title,
+    exercises,
+  };
+}
 
 function getMonthGrid(year: number, month: number) {
   const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -86,6 +184,7 @@ export default function ChatScreen() {
   const [selectedWorkoutId, setSelectedWorkoutId] = useState("");
   const [selectedSharedWorkout, setSelectedSharedWorkout] = useState<SharedWorkoutMetadata | null>(null);
   const [isImportingSharedWorkout, setIsImportingSharedWorkout] = useState(false);
+  const [isAssigningWorkout, setIsAssigningWorkout] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedHour, setSelectedHour] = useState(new Date().getHours());
   const [selectedMinute, setSelectedMinute] = useState(0);
@@ -186,25 +285,55 @@ export default function ChatScreen() {
       });
   };
 
-  const onAssignWorkout = () => {
-    const dateLabel = `${selectedDate.getDate()} ${MONTH_NAMES[selectedDate.getMonth()]} ${selectedDate.getFullYear()}`;
-    setAssignPopupOpen(false);
-    const workoutTitle = myWorkouts.find((item) => item.id === selectedWorkoutId)?.title ?? "Тренировка";
-    Alert.alert("Тренировка назначена", `${workoutTitle}\nДата: ${dateLabel}\nВремя: ${formatTime(selectedHour, selectedMinute)}`);
+  const onAssignWorkout = async () => {
+    if (!currentUserId || !conversationId) {
+      Alert.alert("Ошибка", "Не удалось назначить тренировку: диалог не готов.");
+      return;
+    }
+
+    const scheduledAt = new Date(selectedDate);
+    scheduledAt.setHours(selectedHour, selectedMinute, 0, 0);
+
+    if (Number.isNaN(scheduledAt.getTime())) {
+      Alert.alert("Ошибка", "Укажите корректные дату и время.");
+      return;
+    }
+
+    const now = new Date();
+    if (scheduledAt.getTime() <= now.getTime()) {
+      Alert.alert("Ошибка", "Выберите дату и время в будущем.");
+      return;
+    }
+
+    const dateLabel = `${scheduledAt.getDate()} ${MONTH_NAMES[scheduledAt.getMonth()]} ${scheduledAt.getFullYear()}`;
+    const timeLabel = formatTime(scheduledAt.getHours(), scheduledAt.getMinutes());
+
+    setIsAssigningWorkout(true);
+    try {
+      setAssignPopupOpen(false);
+      await sendDialogMessage(currentUserId, conversationId, `Тренировка назначена на ${dateLabel} в ${timeLabel}`, {
+        kind: "assigned_workout",
+        metadata: {
+          type: "assigned_workout",
+          scheduledAt: scheduledAt.toISOString(),
+        },
+      });
+      await loadMessages(false);
+    } catch (assignError) {
+      setError(assignError instanceof Error ? assignError.message : "Не удалось назначить тренировку.");
+    } finally {
+      setIsAssigningWorkout(false);
+    }
   };
 
   const openSharedWorkoutDetails = (message: ChatMessage) => {
-    const metadata = message.metadata;
-    if (!metadata || typeof metadata !== "object") {
+    const normalized = normalizeSharedWorkoutMetadata(message.metadata);
+    if (!normalized) {
+      Alert.alert("Недоступно", "В этом сообщении нет корректных данных тренировки.");
       return;
     }
 
-    const typed = metadata as SharedWorkoutMetadata;
-    if (typed.type !== "shared_workout" || !Array.isArray(typed.exercises)) {
-      return;
-    }
-
-    setSelectedSharedWorkout(typed);
+    setSelectedSharedWorkout(normalized);
     setSharedWorkoutDetailsOpen(true);
   };
 
@@ -213,10 +342,16 @@ export default function ChatScreen() {
       return;
     }
 
+    const validExercises = selectedSharedWorkout.exercises.filter((exercise) => typeof exercise.exerciseId === "string" && exercise.exerciseId.length > 0);
+    if (validExercises.length === 0) {
+      Alert.alert("Ошибка", "В тренировке нет валидных упражнений для импорта.");
+      return;
+    }
+
     setIsImportingSharedWorkout(true);
     try {
       await importSharedWorkout(currentUserId, {
-        exercises: selectedSharedWorkout.exercises.map((exercise) => ({
+        exercises: validExercises.map((exercise) => ({
           exerciseId: exercise.exerciseId,
           sets: exercise.sets,
           reps: exercise.reps,
@@ -345,6 +480,33 @@ export default function ChatScreen() {
     };
   }, [conversationId, currentUserId, loadMessages]);
 
+  useEffect(() => {
+    if (!currentUserId || messages.length === 0) {
+      return;
+    }
+
+    for (const message of messages) {
+      if (message.kind !== "assigned_workout") {
+        continue;
+      }
+
+      if (message.senderId === currentUserId) {
+        continue;
+      }
+
+      const assigned = normalizeAssignedWorkoutMetadata(message.metadata);
+      if (!assigned) {
+        continue;
+      }
+
+      void scheduleAssignedWorkoutNotifications({
+        scheduleId: `${message.id}:${assigned.scheduledAt}`,
+        contactName,
+        scheduledAt: assigned.scheduledAt,
+      });
+    }
+  }, [contactName, currentUserId, messages]);
+
   const onSendMessage = async () => {
     const normalizedText = messageText.trim();
     if (!normalizedText || !currentUserId || !conversationId) {
@@ -459,6 +621,11 @@ export default function ChatScreen() {
                     <Text style={{ color: colors.textSecondary, fontSize: 12, marginBottom: 5 }}>Поделился тренировкой</Text>
                     <Text style={{ color: colors.textPrimary, fontSize: 15, lineHeight: 21, fontWeight: "700" }}>{message.text}</Text>
                     <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 6 }}>Нажмите, чтобы открыть детали</Text>
+                  </>
+                ) : message.kind === "assigned_workout" ? (
+                  <>
+                    <Text style={{ color: colors.textSecondary, fontSize: 12, marginBottom: 5 }}>Назначение тренировки</Text>
+                    <Text style={{ color: colors.textPrimary, fontSize: 15, lineHeight: 21, fontWeight: "700" }}>{message.text}</Text>
                   </>
                 ) : (
                   <Text style={{ color: colors.textPrimary, fontSize: 15, lineHeight: 21 }}>{message.text}</Text>
@@ -618,9 +785,7 @@ export default function ChatScreen() {
         <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "center", paddingHorizontal: 22 }}>
           <View style={{ backgroundColor: colors.thirdary, borderRadius: 18, padding: 16, borderWidth: 1, borderColor: "rgba(255,255,255,0.08)", maxHeight: "84%" }}>
             <Text style={{ color: colors.textPrimary, fontSize: 17, fontWeight: "700", marginBottom: 4 }}>Назначить тренировку</Text>
-            <Text style={{ color: colors.textSecondary, fontSize: 13, marginBottom: 12 }}>
-              Тренировка: {myWorkouts.find((item) => item.id === selectedWorkoutId)?.title ?? "Не выбрана"}
-            </Text>
+            <Text style={{ color: colors.textSecondary, fontSize: 13, marginBottom: 12 }}>Выберите дату и время</Text>
 
             <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
               <TouchableOpacity activeOpacity={0.85} onPress={() => changeMonth(-1)} style={{ padding: 8 }}>
@@ -716,9 +881,10 @@ export default function ChatScreen() {
               <TouchableOpacity
                 activeOpacity={0.85}
                 onPress={onAssignWorkout}
-                style={{ flex: 1, borderRadius: 12, paddingVertical: 12, alignItems: "center", backgroundColor: colors.accent }}
+                disabled={isAssigningWorkout}
+                style={{ flex: 1, borderRadius: 12, paddingVertical: 12, alignItems: "center", backgroundColor: colors.accent, opacity: isAssigningWorkout ? 0.7 : 1 }}
               >
-                <Text style={{ color: colors.textPrimary, fontSize: 14, fontWeight: "700" }}>Назначить</Text>
+                <Text style={{ color: colors.textPrimary, fontSize: 14, fontWeight: "700" }}>{isAssigningWorkout ? "Назначение..." : "Назначить"}</Text>
               </TouchableOpacity>
             </View>
           </View>
