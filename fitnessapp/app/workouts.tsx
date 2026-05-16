@@ -314,6 +314,15 @@ export default function Workouts() {
               </Text>
             </TouchableOpacity>
           </View>
+          <View style={{ marginTop: 12 }}>
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => router.push({ pathname: "/generate-week" } as any)}
+              style={{ alignItems: "center", paddingVertical: 10, borderRadius: 12, backgroundColor: colors.secondary }}
+            >
+              <Text style={{ color: colors.textPrimary, fontSize: 14, fontWeight: "600" }}>Сгенерировать неделю</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <View style={{ backgroundColor: colors.thirdary, borderRadius: 20, padding: 18, marginBottom: 18 }}>

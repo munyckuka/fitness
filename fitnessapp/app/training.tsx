@@ -136,6 +136,15 @@ export default function Training() {
                   <Text style={{ color: colors.textSecondary, fontSize: 15, marginTop: 2 }}>{exercise.weight} кг</Text>
                 ) : null}
                 <Text style={{ color: colors.textSecondary, fontSize: 15, marginTop: 2 }}>{exercise.restSeconds} сек. отдыха</Text>
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() =>
+                    router.push({ pathname: "/replace-exercise", params: { workoutId: workout?.id ?? "", exerciseId: exercise.id } } as any)
+                  }
+                  style={{ marginTop: 8, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 10, backgroundColor: "rgba(255,255,255,0.03)" }}
+                >
+                  <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Заменить</Text>
+                </TouchableOpacity>
               </View>
             </TouchableOpacity>
           ))}

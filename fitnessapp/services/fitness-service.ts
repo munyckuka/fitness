@@ -10,6 +10,9 @@ export type WorkoutExercise = {
   restSeconds: number;
   weight?: number;
   imageUri?: string;
+  description?: string;
+  requiredEquipment?: string;
+  difficultyLevel?: number;
 };
 
 export type WorkoutSummary = {
@@ -213,7 +216,38 @@ function normalizeExercise(payload: BackendWorkoutExercise, fallbackId: string):
     reps: payload.reps,
     restSeconds: payload.rest,
     weight: typeof payload.weight === "number" ? Math.round(payload.weight * 10) / 10 : undefined,
+    imageUri: typeof (payload as any).photoPath === "string" && (payload as any).photoPath.length > 0 ? (payload as any).photoPath : undefined,
+    description: typeof (payload as any).description === "string" ? (payload as any).description : undefined,
+    requiredEquipment: typeof (payload as any).requiredEquipment === "string" ? (payload as any).requiredEquipment : undefined,
+    difficultyLevel: typeof (payload as any).difficultyLevel === "number" ? (payload as any).difficultyLevel : undefined,
   };
+}
+
+export async function generateWeekWorkouts(userId: string, startDate: string) {
+  const payload = await requestWithAuth<BackendWorkout[]>(
+    "/workouts/generate-week",
+    {
+      method: "POST",
+      body: JSON.stringify({ startDate }),
+    },
+    userId,
+  );
+
+  const collection = Array.isArray(payload) ? payload : [];
+  const user = await getUser(userId).catch(() => undefined);
+
+  return collection.map((item) => normalizeWorkout(item, user));
+}
+
+export async function replaceExercise(userId: string, workoutId: string, oldExerciseId: string, newExerciseId: string) {
+  await requestWithAuth(
+    `/workouts/${workoutId}/exercises/${oldExerciseId}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ newExerciseId }),
+    },
+    userId,
+  );
 }
 
 function normalizeProgress(payload: BackendProgress): ProgressData {

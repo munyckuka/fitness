@@ -212,7 +212,7 @@ export default function TrainingExercise() {
         [currentExercise?.id ?? ""]: completedSets,
       };
 
-      const exercisesPayload: CompleteWorkoutExerciseInput[] = workout.exercises
+      const exercisesPayload = workout.exercises
           .map((exercise: WorkoutExercise) => {
                const exerciseProgress = (progressMap[exercise.id] ?? []) as boolean[];
                const qualities = (setQualitiesByExercise[exercise.id] ?? []) as (number | undefined)[];
@@ -240,7 +240,7 @@ export default function TrainingExercise() {
       await setWorkoutProgress(workout.id, progressMap);
       await setPendingWorkoutCompletion({
         workoutId,
-        exercises: exercisesPayload,
+        exercises: exercisesPayload as CompleteWorkoutExerciseInput[],
       });
 
       router.push(`/training-feedback?workoutId=${workoutId}`);

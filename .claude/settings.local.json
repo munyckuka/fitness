@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(go build *)",
+      "Bash(where go.exe)",
+      "Bash(\"C:/Program Files/Go/bin/go.exe\" version)",
+      "Read(//c/Program Files/Go/**)",
+      "Read(//c//**)",
+      "Read(//c/tools/**)",
+      "Read(//c/Users/kairb/**)",
+      "Bash(/c/Users/kairb/sdk/go1.25.7/bin/go.exe build *)",
+      "Bash(/c/Users/kairb/sdk/go1.25.7/bin/go.exe vet *)"
+    ]
+  }
+}
