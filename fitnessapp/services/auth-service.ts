@@ -193,6 +193,16 @@ export function mapEquipmentToBackend(equipment?: string) {
       return "pullup_bar";
     case "Тренажерный зал":
       return "barbell";
+    case "Кеттлбелл":
+      return "kettlebell";
+    case "Кроссовер/Кабель":
+      return "cable";
+    case "Резинка":
+      return "band";
+    case "Мяч":
+      return "medicine ball";
+    case "Нет":
+      return "none";
     default:
       return "";
   }

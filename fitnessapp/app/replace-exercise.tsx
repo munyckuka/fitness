@@ -3,7 +3,7 @@ import { ActivityIndicator, SafeAreaView, ScrollView, Text, TextInput, Touchable
 import { colors } from "./theme";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { getStoredUserId } from "@/services/session-service";
-import { replaceExercise } from "@/services/fitness-service";
+import { replaceExercise, getUserWorkouts, searchExercises, ExerciseSearchResult } from "@/services/fitness-service";
 
 export default function ReplaceExercisePage() {
   const router = useRouter();
@@ -17,8 +17,31 @@ export default function ReplaceExercisePage() {
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
+  const [query, setQuery] = useState("");
+  const [suggestions, setSuggestions] = useState<ExerciseSearchResult[]>([]);
+  const [selected, setSelected] = useState<ExerciseSearchResult | null>(null);
+
   useEffect(() => {
-    // nothing
+    (async () => {
+      try {
+        const userId = await getStoredUserId();
+        if (!userId) return;
+        if (!workoutId || !exerciseId) return;
+
+        // try to infer muscle group from existing workout and prefill suggestions
+        const workouts = await getUserWorkouts(userId).catch(() => [] as any[]);
+        const workout = workouts.find((w) => String(w.id) === String(workoutId));
+        if (!workout) return;
+        const ex = (workout.exercises ?? []).find((e: any) => String(e.id) === String(exerciseId));
+        const muscle = ex ? (ex.muscle ?? "") : "";
+        if (muscle) {
+          const list = await searchExercises(undefined, muscle, 30).catch(() => []);
+          setSuggestions(list);
+        }
+      } catch {
+        // ignore
+      }
+    })();
   }, []);
 
   const handleReplace = async () => {
@@ -28,7 +51,7 @@ export default function ReplaceExercisePage() {
       return;
     }
     if (!newExerciseId) {
-      setMessage("Введите идентификатор нового упражнения.");
+      setMessage("Выберите упражнение из списка или введите поиск по имени.");
       return;
     }
 
@@ -46,6 +69,20 @@ export default function ReplaceExercisePage() {
     }
   };
 
+  const handleSearch = async () => {
+    setIsLoading(true);
+    setMessage(null);
+    try {
+      const list = await searchExercises(query, undefined, 50);
+      setSuggestions(list);
+      if (list.length === 0) setMessage("Ничего не найдено");
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : String(err));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background, paddingTop: 20 }}>
       <ScrollView contentContainerStyle={{ padding: 20 }}>
@@ -53,7 +90,18 @@ export default function ReplaceExercisePage() {
         <Text style={{ color: colors.textSecondary, marginBottom: 8 }}>workoutId: {workoutId}</Text>
         <Text style={{ color: colors.textSecondary, marginBottom: 8 }}>exerciseId: {exerciseId}</Text>
 
-        <TextInput value={newExerciseId} onChangeText={setNewExerciseId} placeholder="Новый exerciseId" style={{ height: 44, borderRadius: 10, paddingHorizontal: 12, backgroundColor: colors.thirdary, color: colors.textPrimary, marginBottom: 12 }} />
+        <TextInput value={query} onChangeText={setQuery} placeholder="Поиск по названию (например: curl, press)" style={{ height: 44, borderRadius: 10, paddingHorizontal: 12, backgroundColor: colors.thirdary, color: colors.textPrimary, marginBottom: 8 }} />
+        <TouchableOpacity onPress={handleSearch} style={{ backgroundColor: colors.accent, paddingVertical: 10, borderRadius: 12, alignItems: "center", marginBottom: 12 }}>
+          {isLoading ? <ActivityIndicator color={colors.textPrimary} /> : <Text style={{ color: colors.textPrimary, fontWeight: "700" }}>Найти</Text>}
+        </TouchableOpacity>
+
+        {suggestions.map((s) => (
+          <TouchableOpacity key={s.id} onPress={() => { setSelected(s); setNewExerciseId(s.id); setMessage(null); }} style={{ padding: 12, borderRadius: 8, backgroundColor: selected?.id === s.id ? '#2E2E2E' : colors.thirdary, marginBottom: 8 }}>
+            <Text style={{ color: colors.textPrimary, fontWeight: "700" }}>{s.name}</Text>
+            <Text style={{ color: colors.textSecondary }}>{s.muscleGroupLabel ?? s.muscleGroup} · {s.requiredEquipmentLabel ?? s.requiredEquipment ?? '—'}</Text>
+            {s.difficultyLabel ? <Text style={{ color: colors.textSecondary }}>{s.difficultyLabel}</Text> : null}
+          </TouchableOpacity>
+        ))}
 
         <TouchableOpacity onPress={handleReplace} style={{ backgroundColor: colors.accent, paddingVertical: 12, borderRadius: 12, alignItems: "center", marginBottom: 12 }}>
           {isLoading ? <ActivityIndicator color={colors.textPrimary} /> : <Text style={{ color: colors.textPrimary, fontWeight: "700" }}>Заменить</Text>}

@@ -13,6 +13,8 @@ type WorkoutService interface {
 	GetUserWorkouts(ctx context.Context, userID string) ([]domain.Workout, error)
 	ImportSharedWorkout(ctx context.Context, userID string, req dto.ImportSharedWorkoutRequest) (domain.Workout, error)
 	ReplaceExercise(ctx context.Context, userID string, workoutID string, oldExerciseID string, newExerciseID string) error
+	// ListExercises returns exercises optionally filtered by name query and muscle group.
+	ListExercises(ctx context.Context, query string, muscle string, limit int) ([]domain.Exercise, error)
 	GenerateWeekWorkouts(ctx context.Context, userID string, startDate time.Time) ([]domain.Workout, error)
 }
 

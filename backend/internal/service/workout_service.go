@@ -5,6 +5,7 @@ import (
 	"backend/internal/utils"
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"backend/internal/domain"
@@ -168,6 +169,38 @@ func (s *workoutService) GenerateWorkout(
 	}
 
 	return GenerateWorkoutResult{Workout: workout, Warning: warning}, nil
+}
+
+// ListExercises returns exercises optionally filtered by name substring (query) and muscle group.
+func (s *workoutService) ListExercises(ctx context.Context, query string, muscle string, limit int) ([]domain.Exercise, error) {
+	exercises, err := s.ExerciseRepo.GetAll(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	q := strings.TrimSpace(strings.ToLower(query))
+	m := strings.TrimSpace(strings.ToLower(muscle))
+
+	var out []domain.Exercise
+	for _, ex := range exercises {
+		if q != "" {
+			if !strings.Contains(strings.ToLower(ex.Name), q) {
+				continue
+			}
+		}
+		if m != "" {
+			// muscle groups in DB may be like 'biceps' or 'full body'
+			if !strings.Contains(strings.ToLower(ex.MuscleGroup), m) {
+				continue
+			}
+		}
+		out = append(out, ex)
+		if limit > 0 && len(out) >= limit {
+			break
+		}
+	}
+
+	return out, nil
 }
 
 func resolvePreferences(user domain.User, override *domain.TrainingPreferences) domain.TrainingPreferences {

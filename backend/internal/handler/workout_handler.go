@@ -4,6 +4,7 @@ import (
 	"backend/internal/middleware"
 	"backend/internal/utils"
 	"net/http"
+	"strconv"
 	"time"
 
 	"backend/internal/dto"
@@ -201,6 +202,112 @@ func (h *WorkoutHandler) ReplaceExercise(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"status": "replaced"})
+}
+
+func (h *WorkoutHandler) ListExercises(c *gin.Context) {
+	q := c.Query("q")
+	muscle := c.Query("muscle")
+	limitStr := c.Query("limit")
+	limit := 50
+	if limitStr != "" {
+		if v, err := strconv.Atoi(limitStr); err == nil && v > 0 {
+			limit = v
+		}
+	}
+
+	exercises, err := h.service.ListExercises(c.Request.Context(), q, muscle, limit)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	var response []dto.ExerciseDTO
+	for _, ex := range exercises {
+		response = append(response, dto.ExerciseDTO{
+			ID:                ex.ID.String(),
+			Name:              ex.Name,
+			MuscleGroup:       ex.MuscleGroup,
+			RequiredEquipment: ex.RequiredEquipment,
+			DifficultyLevel:   difficultyLabel(ex.DifficultyLevel),
+		})
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
+func difficultyLabel(level int) string {
+	switch level {
+	case 1:
+		return "beginner"
+	case 2:
+		return "intermediate"
+	case 3:
+		return "advanced"
+	default:
+		return "beginner"
+	}
+}
+
+func equipmentLabel(e string) string {
+	switch e {
+	case "":
+		return "Домашний"
+	case "dumbbell":
+		return "Гантели"
+	case "bodyweight":
+		return "Домашний"
+	case "barbell":
+		return "Тренажерный зал"
+	case "machine":
+		return "Тренажерный зал"
+	case "cable":
+		return "Кроссовер/Кабель"
+	case "kettlebell":
+		return "Кеттлбелл"
+	case "medicine ball":
+		return "Мяч"
+	case "none":
+		return "Нет"
+	case "band":
+		return "Резинка"
+	default:
+		return e
+	}
+}
+
+func muscleGroupLabel(m string) string {
+	switch m {
+	case "chest":
+		return "Грудь"
+	case "shoulders":
+		return "Плечи"
+	case "shoulder":
+		return "Плечи"
+	case "tricep":
+		return "Трицепс"
+	case "back":
+		return "Спина"
+	case "biceps":
+		return "Бицепс"
+	case "bicep":
+		return "Бицепс"
+	case "quadriceps":
+		return "Квадрицепс"
+	case "hamstrings":
+		return "Бицепс бедра"
+	case "calves":
+		return "Икры"
+	case "glutes":
+		return "Ягодицы"
+	case "core":
+		return "Кор"
+	case "full body":
+		return "Все тело"
+	case "legs":
+		return "Ноги"
+	default:
+		return "Основная группа"
+	}
 }
 
 func (h *WorkoutHandler) GenerateWeekWorkouts(c *gin.Context) {

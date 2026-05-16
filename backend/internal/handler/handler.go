@@ -35,6 +35,11 @@ func SetupRoutes(r *gin.Engine, authMiddleware gin.HandlerFunc, authHandler *Aut
 			workouts.PATCH("/:workoutId/exercises/:exerciseId", authMiddleware, workoutHandler.ReplaceExercise)
 		}
 
+		exercises := api.Group("/exercises")
+		{
+			exercises.GET("/", workoutHandler.ListExercises)
+		}
+
 		progress := api.Group("/progress")
 		{
 			progress.GET("/:id", progressHandler.GetProgress)

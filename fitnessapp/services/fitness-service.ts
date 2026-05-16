@@ -286,6 +286,28 @@ export async function replaceExercise(userId: string, workoutId: string, oldExer
   );
 }
 
+export type ExerciseSearchResult = {
+  id: string;
+  name: string;
+  muscleGroup: string;
+  requiredEquipment?: string;
+  difficultyLevel?: string;
+  // labels for display
+  muscleGroupLabel?: string;
+  requiredEquipmentLabel?: string;
+  difficultyLabel?: string;
+};
+
+export async function searchExercises(query?: string, muscle?: string, limit?: number) {
+  const params = new URLSearchParams();
+  if (query) params.append("q", query);
+  if (muscle) params.append("muscle", muscle);
+  if (limit && limit > 0) params.append("limit", String(limit));
+
+  const payload = await apiRequest<ExerciseSearchResult[]>(`/exercises?${params.toString()}`);
+  return Array.isArray(payload) ? payload : [];
+}
+
 function normalizeProgress(payload: BackendProgress): ProgressData {
   return {
     workoutDates: payload.workoutDates ?? [],

@@ -20,7 +20,17 @@ type WorkoutData = {
 type WorkoutStepComponent = (props: { data: WorkoutData; onUpdate: (data: WorkoutData) => void }) => React.JSX.Element;
 
 const FREQUENCY_OPTIONS = ["2", "3", "4"];
-const EQUIPMENT_OPTIONS = ["Домашний", "Гантели", "Спортивная площадка", "Тренажерный зал"];
+const EQUIPMENT_OPTIONS = [
+  "Домашний",
+  "Гантели",
+  "Спортивная площадка",
+  "Тренажерный зал",
+  "Кеттлбелл",
+  "Кроссовер/Кабель",
+  "Резинка",
+  "Мяч",
+  "Нет",
+];
 
 function StepCard({ label, subtitle, selected, onPress }: { label: string; subtitle: string; selected: boolean; onPress: () => void }) {
   return (
