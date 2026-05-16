@@ -125,14 +125,50 @@ export async function generateWorkout(userId: string, user?: Pick<UserProfile, "
     userId,
   );
 
-  return normalizeWorkout(payload, user);
+  const workout = normalizeWorkout(payload, user);
+
+  // If user has no equipment (Домашний) filter out exercises that require external equipment.
+  try {
+    const userEquip = user?.equipment ?? "";
+    if (userEquip === "Домашний" || userEquip === "") {
+      workout.exercises = workout.exercises.filter((ex) => {
+        const req = (ex.requiredEquipment ?? "").toLowerCase();
+        if (!req) return true;
+        // allow bodyweight-type exercises
+        return req.includes("body") || req.includes("bodyweight");
+      });
+    }
+  } catch {
+    // if any error during filtering, return original workout
+  }
+
+  return workout;
 }
 
 export async function getUserWorkouts(userId: string) {
   const [payload, user] = await Promise.all([apiRequest<BackendWorkout[]>(`/workouts/user/${userId}`), getUser(userId)]);
   const collection = Array.isArray(payload) ? payload : [];
 
-  return collection.map((item) => normalizeWorkout(item, user));
+  const workouts = collection.map((item) => normalizeWorkout(item, user));
+
+  // apply same equipment filter for generated week when user has no equipment
+  try {
+    const userEquip = user?.equipment ?? "";
+    if (userEquip === "Домашний" || userEquip === "") {
+      return workouts.map((w) => ({
+        ...w,
+        exercises: w.exercises.filter((ex) => {
+          const req = (ex.requiredEquipment ?? "").toLowerCase();
+          if (!req) return true;
+          return req.includes("body") || req.includes("bodyweight");
+        }),
+      }));
+    }
+  } catch {
+    // ignore
+  }
+
+  return workouts;
 }
 
 export type RecoveryMetrics = {

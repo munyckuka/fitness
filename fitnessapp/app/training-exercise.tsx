@@ -319,61 +319,66 @@ export default function TrainingExercise() {
           </View>
 
           {completedSets.map((isDone: boolean, idx: number) => (
-                <TouchableOpacity
-                  key={`set-${idx}`}
-                  activeOpacity={0.75}
-                  onPress={() => toggleSet(idx)}
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    marginBottom: 12,
-                    justifyContent: "space-between",
-                  }}
-                >
-                  <View style={{ flexDirection: "row", alignItems: "center" }}>
-                    <MaterialIcons
-                      name={isDone ? "check-box" : "check-box-outline-blank"}
-                      size={30}
-                      color={isDone ? colors.accent : colors.textPrimary}
-                    />
-                    <Text style={{ color: colors.textPrimary, fontSize: 18, marginLeft: 12 }}>
-                      Подход {idx + 1}: {repsPerSet} повторений
-                    </Text>
-                  </View>
+            <View key={`set-${idx}`} style={{ marginBottom: 12 }}>
+              <TouchableOpacity
+                activeOpacity={0.75}
+                onPress={() => toggleSet(idx)}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
+                <View style={{ flexDirection: "row", alignItems: "center" }}>
+                  <MaterialIcons
+                    name={isDone ? "check-box" : "check-box-outline-blank"}
+                    size={30}
+                    color={isDone ? colors.accent : colors.textPrimary}
+                  />
+                  <Text style={{ color: colors.textPrimary, fontSize: 18, marginLeft: 12 }}>
+                    Подход {idx + 1}: {repsPerSet} повторений
+                  </Text>
+                </View>
 
-                  {isDone ? (
-                    <View style={{ flexDirection: "row", gap: 6 }}>
-                      {Array.from({ length: 10 }).map((_, vIdx) => {
-                        const value = vIdx + 1;
-                        const qualities = setQualitiesByExercise[currentExercise?.id ?? ""] ?? [];
-                        const selected = qualities[idx] === value;
-                        return (
-                          <TouchableOpacity
-                            key={`q-${idx}-${value}`}
-                            onPress={() =>
-                              setSetQualitiesByExercise((prev: Record<string, (number | undefined)[]>) => {
-                                const existing = prev[currentExercise?.id ?? ""] ?? Array.from({ length: setCount }, () => undefined);
-                                const next = existing.slice();
-                                next[idx] = value;
-                                return { ...prev, [currentExercise?.id ?? ""]: next };
-                              })
-                            }
-                            style={{
-                              width: 28,
-                              height: 28,
-                              borderRadius: 6,
-                              justifyContent: "center",
-                              alignItems: "center",
-                              backgroundColor: selected ? colors.accent : colors.secondary,
-                            }}
-                          >
-                            <Text style={{ color: colors.textPrimary, fontSize: 12 }}>{value}</Text>
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </View>
-                  ) : null}
-                </TouchableOpacity>
+                <Text style={{ color: colors.textSecondary, fontSize: 14 }}>{isDone ? "Завершён" : "Не выполнен"}</Text>
+              </TouchableOpacity>
+
+              {isDone ? (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingTop: 8, paddingBottom: 4 }}>
+                  <View style={{ flexDirection: "row", alignItems: "center" }}>
+                    {Array.from({ length: 10 }).map((_, vIdx) => {
+                      const value = vIdx + 1;
+                      const qualities = setQualitiesByExercise[currentExercise?.id ?? ""] ?? [];
+                      const selected = qualities[idx] === value;
+                      return (
+                        <TouchableOpacity
+                          key={`q-${idx}-${value}`}
+                          onPress={() =>
+                            setSetQualitiesByExercise((prev: Record<string, (number | undefined)[]>) => {
+                              const existing = prev[currentExercise?.id ?? ""] ?? Array.from({ length: setCount }, () => undefined);
+                              const next = existing.slice();
+                              next[idx] = value;
+                              return { ...prev, [currentExercise?.id ?? ""]: next };
+                            })
+                          }
+                          style={{
+                            minWidth: 36,
+                            height: 36,
+                            borderRadius: 8,
+                            justifyContent: "center",
+                            alignItems: "center",
+                            marginRight: 6,
+                            backgroundColor: selected ? colors.accent : colors.secondary,
+                          }}
+                        >
+                          <Text style={{ color: colors.textPrimary, fontSize: 13 }}>{value}</Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </ScrollView>
+              ) : null}
+            </View>
           ))}
 
           <View style={{ marginTop: 6 }}>
