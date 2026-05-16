@@ -19,19 +19,17 @@ type GenerateWeekWorkoutsRequest struct {
 	StartDate string `json:"startDate" binding:"required"`
 }
 
-// ...existing code...
-
 type ExerciseLogRequest struct {
 	ExerciseID  string        `json:"exercise_id"`
 	Sets        []SetLogInput `json:"sets"`
-	RPE         int           `json:"rpe,omitempty"`
+	RPE         float64       `json:"rpe,omitempty"`
 	FormQuality int           `json:"formQuality,omitempty"`
 }
 
 type SetLogInput struct {
-	Reps   int `json:"reps"`
-	Weight int `json:"weight"`
-	RPE    int `json:"rpe,omitempty"` // Rate of Perceived Exertion (1-10)
+	Reps   int     `json:"reps"`
+	Weight float64 `json:"weight"`
+	RPE    float64 `json:"rpe,omitempty"` // Rate of Perceived Exertion (1-10)
 }
 
 type CompleteWorkoutRequest struct {

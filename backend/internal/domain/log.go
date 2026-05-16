@@ -7,8 +7,8 @@ type ExerciseLog struct {
 	Sets        []SetLog
 	Difficulty  int
 	Cycle       int
-	RPE         int `json:"rpe"`         // Rate of Perceived Exertion (1-10)
-	FormQuality int `json:"formQuality"` // 1-5 scale
+	RPE         float64 `json:"rpe"`         // Rate of Perceived Exertion (1-10)
+	FormQuality int     `json:"formQuality"` // 1-5 scale
 }
 
 type SetLog struct {
