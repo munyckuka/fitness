@@ -8,7 +8,7 @@ func CalculateVolume(logs []domain.WorkoutLog) float64 {
 	for _, log := range logs {
 		for _, ex := range log.Exercises {
 			for _, set := range ex.Sets {
-				total += float64(set.Reps * set.Weight)
+				total += float64(set.Reps * int(set.Weight))
 			}
 		}
 	}
