@@ -4,6 +4,7 @@ import (
 	"backend/internal/domain"
 	"context"
 	"errors"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -29,6 +30,7 @@ type UserRepository interface {
 	SearchByLogin(ctx context.Context, currentUserID string, loginQuery string, limit int) ([]domain.User, error)
 	Create(ctx context.Context, user domain.User) (domain.User, error)
 	Update(ctx context.Context, user domain.User) (domain.User, error)
+	UpsertPreferences(ctx context.Context, prefs domain.TrainingPreferences) error
 }
 
 type CredentialsRepository interface {
@@ -43,8 +45,10 @@ type WorkoutRepository interface {
 	Save(ctx context.Context, w domain.Workout) error
 	GetByID(ctx context.Context, id uuid.UUID) (domain.Workout, error)
 	GetByUser(ctx context.Context, userID string) ([]domain.Workout, error)
+	GetByUserBetween(ctx context.Context, userID string, from time.Time, to time.Time) ([]domain.Workout, error)
 	Update(ctx context.Context, w domain.Workout) error
 	UpdateStatus(ctx context.Context, id string, status domain.WorkoutStatus) error
+	ReplaceExercise(ctx context.Context, workoutID string, oldExerciseID string, newExerciseID string) error
 }
 
 type ExerciseRepository interface {

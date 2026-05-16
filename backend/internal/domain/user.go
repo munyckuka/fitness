@@ -21,4 +21,6 @@ type User struct {
 	FitnessLevel string
 	Frequency    int
 	Equipment    []string
+
+	Preferences *TrainingPreferences
 }

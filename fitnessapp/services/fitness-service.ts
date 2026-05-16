@@ -65,6 +65,7 @@ export type UpdateUserInput = {
 export type CompleteWorkoutExerciseSetInput = {
   reps: number;
   weight: number;
+  rpe?: number;
 };
 
 export type CompleteWorkoutExerciseInput = {
@@ -131,21 +132,34 @@ export async function getUserWorkouts(userId: string) {
   return collection.map((item) => normalizeWorkout(item, user));
 }
 
+export type RecoveryMetrics = {
+  sleepHours?: number;
+  sleepQuality?: number; // 1-5
+  stressLevel?: number; // 1-10
+};
+
 export async function completeWorkout(input: {
   userId: string;
   workoutId: string;
   difficulty: number;
   exercises: CompleteWorkoutExerciseInput[];
+  recovery?: RecoveryMetrics;
 }) {
+  const bodyPayload: any = {
+    workoutId: input.workoutId,
+    difficulty: input.difficulty,
+    exercises: input.exercises,
+  };
+
+  if (input.recovery) {
+    bodyPayload.recovery = input.recovery;
+  }
+
   return requestWithAuth<unknown>(
     "/workouts/complete",
     {
       method: "POST",
-      body: JSON.stringify({
-        workoutId: input.workoutId,
-        difficulty: input.difficulty,
-        exercises: input.exercises,
-      }),
+      body: JSON.stringify(bodyPayload),
     },
     input.userId,
   );

@@ -4,13 +4,32 @@ import (
 	"backend/internal/domain"
 	"backend/internal/dto"
 	"context"
+	"time"
 )
 
 type WorkoutService interface {
-	GenerateWorkout(ctx context.Context, userID string) (domain.Workout, error)
+	GenerateWorkout(ctx context.Context, userID string, opts GenerateWorkoutOptions) (GenerateWorkoutResult, error)
 	CompleteWorkout(ctx context.Context, userID string, workoutID string, difficulty int, log domain.WorkoutLog) error
 	GetUserWorkouts(ctx context.Context, userID string) ([]domain.Workout, error)
 	ImportSharedWorkout(ctx context.Context, userID string, req dto.ImportSharedWorkoutRequest) (domain.Workout, error)
+	ReplaceExercise(ctx context.Context, userID string, workoutID string, oldExerciseID string, newExerciseID string) error
+	GenerateWeekWorkouts(ctx context.Context, userID string, startDate time.Time) ([]domain.Workout, error)
+}
+
+type GenerateWorkoutOptions struct {
+	DayIndex      *int
+	Preferences   *domain.TrainingPreferences
+	PlannedFor    *time.Time
+	SleepHours    int // 0-24, optional
+	SleepQuality  int // 1-10, optional
+	StressLevel   int // 1-10, optional
+}
+
+const WarningOvertraining = "overtraining_detected"
+
+type GenerateWorkoutResult struct {
+	Workout domain.Workout
+	Warning string
 }
 
 type UserService interface {

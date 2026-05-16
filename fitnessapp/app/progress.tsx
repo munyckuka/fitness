@@ -46,14 +46,14 @@ export default function Progress() {
   const [error, setError] = useState<string | null>(null);
   const today = new Date();
   const currentMonthKey = getMonthKey(today);
-  const workoutDays = progress.workoutDates.filter((date) => date.startsWith(currentMonthKey)).map((date) => Number(date.slice(-2)));
-  
+  const workoutDays = progress.workoutDates.filter((date: string) => date.startsWith(currentMonthKey)).map((date: string) => Number(date.slice(-2)));
+
   // Deduplicate and get max value per month
-  const uniqueWeightHistory = Array.from(new Map(progress.weightHistory.map((item) => [item.label, item])).values()).sort(
-    (left, right) => (MONTH_ORDER[left.label] ?? Number.MAX_SAFE_INTEGER) - (MONTH_ORDER[right.label] ?? Number.MAX_SAFE_INTEGER),
+  const uniqueWeightHistory = Array.from(new Map(progress.weightHistory.map((item: { label: string; value: number }) => [item.label, item])).values()).sort(
+    (left: { label: string; value: number }, right: { label: string; value: number }) => (MONTH_ORDER[left.label] ?? Number.MAX_SAFE_INTEGER) - (MONTH_ORDER[right.label] ?? Number.MAX_SAFE_INTEGER),
   );
   
-  const maxWeightValue = Math.max(...uniqueWeightHistory.map((item) => item.value), 1);
+  const maxWeightValue = Math.max(...uniqueWeightHistory.map((item: { label: string; value: number }) => item.value), 1);
 
   useEffect(() => {
     let isMounted = true;

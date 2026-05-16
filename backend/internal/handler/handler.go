@@ -28,9 +28,11 @@ func SetupRoutes(r *gin.Engine, authMiddleware gin.HandlerFunc, authHandler *Aut
 		workouts := api.Group("/workouts")
 		{
 			workouts.POST("/generate", authMiddleware, workoutHandler.GenerateWorkout)
+			workouts.POST("/generate-week", authMiddleware, workoutHandler.GenerateWeekWorkouts)
 			workouts.POST("/import-shared", authMiddleware, workoutHandler.ImportSharedWorkout)
 			workouts.POST("/complete", authMiddleware, workoutHandler.CompleteWorkout)
 			workouts.GET("/user/:id", workoutHandler.GetUserWorkouts)
+			workouts.PATCH("/:workoutId/exercises/:exerciseId", authMiddleware, workoutHandler.ReplaceExercise)
 		}
 
 		progress := api.Group("/progress")

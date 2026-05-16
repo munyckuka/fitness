@@ -2,13 +2,15 @@ import { useEffect, useState } from "react";
 import { ActivityIndicator, Image, SafeAreaView, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { getUserWorkouts, type WorkoutSummary } from "@/services/fitness-service";
+import { getUserWorkouts, type WorkoutSummary, type WorkoutExercise } from "@/services/fitness-service";
 import { getStoredUserId, getStoredWorkoutId, setStoredWorkoutId } from "@/services/session-service";
 import { colors } from "./theme";
 
 export default function Training() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ workoutId?: string }>();
+  const params = useLocalSearchParams();
+  const rawWorkoutId = params.workoutId;
+  const paramWorkoutId = Array.isArray(rawWorkoutId) ? rawWorkoutId[0] : rawWorkoutId;
   const [workout, setWorkout] = useState<WorkoutSummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -19,7 +21,7 @@ export default function Training() {
     const loadWorkout = async () => {
       try {
         const userId = await getStoredUserId();
-        const workoutId = params.workoutId ?? (await getStoredWorkoutId());
+        const workoutId = paramWorkoutId ?? (await getStoredWorkoutId());
 
         if (!userId || !workoutId) {
           if (isMounted) {
@@ -54,9 +56,9 @@ export default function Training() {
     return () => {
       isMounted = false;
     };
-  }, [params.workoutId]);
+  }, [paramWorkoutId]);
 
-  const exercises = workout?.exercises ?? [];
+  const exercises = (workout?.exercises ?? []) as WorkoutExercise[];
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background, paddingTop: 20 }}>
@@ -162,7 +164,7 @@ export default function Training() {
 
           <TouchableOpacity
             activeOpacity={0.8}
-            onPress={() => (workout ? router.push(`/training-exercise?workoutId=${workout.id}&exercise=0`) : router.push("/create-workout"))}
+              onPress={() => (workout ? router.push(`/pre-workout?workoutId=${workout.id}`) : router.push("/create-workout"))}
             style={{
               flex: 1.55,
               paddingVertical: 10,

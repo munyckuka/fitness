@@ -11,6 +11,7 @@ import {
   sendDialogMessage,
   type ChatMessage,
   type SharedWorkoutMetadata,
+  type SharedWorkoutExercise,
 } from "@/services/chat-service";
 import { getUserWorkouts, type WorkoutSummary } from "@/services/fitness-service";
 import { getStoredUserId } from "@/services/session-service";
@@ -165,7 +166,7 @@ export default function ChatScreen() {
     const metadata: SharedWorkoutMetadata = {
       type: "shared_workout",
       title: workoutToShare.title,
-      exercises: workoutToShare.exercises.map((exercise) => ({
+      exercises: workoutToShare.exercises.map((exercise: typeof workoutToShare.exercises[0]) => ({
         exerciseId: exercise.id,
         name: exercise.name,
         muscleGroup: exercise.muscle,
@@ -251,7 +252,7 @@ export default function ChatScreen() {
     setIsImportingSharedWorkout(true);
     try {
       await importSharedWorkout(currentUserId, {
-        exercises: selectedSharedWorkout.exercises.map((exercise) => ({
+        exercises: selectedSharedWorkout.exercises.map((exercise: SharedWorkoutExercise) => ({
           exerciseId: exercise.exerciseId,
           sets: exercise.sets,
           reps: exercise.reps,
@@ -459,7 +460,7 @@ export default function ChatScreen() {
           <Text style={{ color: colors.textSecondary, fontSize: 14, textAlign: "center" }}>Сообщений пока нет.</Text>
         ) : null}
 
-        {messages.map((message) => {
+        {messages.map((message: ChatMessage) => {
           const isMine = message.senderId === currentUserId;
           const parsedDate = new Date(message.createdAt);
           const timeLabel = Number.isNaN(parsedDate.getTime()) ? "--:--" : `${String(parsedDate.getHours()).padStart(2, "0")}:${String(parsedDate.getMinutes()).padStart(2, "0")}`;
@@ -609,7 +610,7 @@ export default function ChatScreen() {
             <ScrollView showsVerticalScrollIndicator={false}>
               {isLoadingMyWorkouts ? <Text style={{ color: colors.textSecondary }}>Загрузка...</Text> : null}
 
-              {myWorkouts.map((workout) => {
+              {myWorkouts.map((workout: WorkoutSummary) => {
                 const isSelected = selectedWorkoutId === workout.id;
 
                 return (
@@ -673,16 +674,16 @@ export default function ChatScreen() {
             </View>
 
             <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 8 }}>
-              {WEEKDAYS.map((weekday) => (
+              {WEEKDAYS.map((weekday: string) => (
                 <Text key={weekday} style={{ color: colors.textSecondary, fontSize: 12, width: 34, textAlign: "center" }}>
                   {weekday}
                 </Text>
               ))}
             </View>
 
-            {monthGrid.map((week, weekIndex) => (
+            {monthGrid.map((week: (number | null)[], weekIndex: number) => (
               <View key={`week-${weekIndex}`} style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 8 }}>
-                {week.map((day, dayIndex) => {
+                {week.map((day: number | null, dayIndex: number) => {
                   const isSelected = day !== null && day === selectedDate.getDate();
 
                   return (
@@ -773,7 +774,7 @@ export default function ChatScreen() {
             <Text style={{ color: colors.textSecondary, fontSize: 13, marginBottom: 12 }}>Детали тренировки</Text>
 
             <ScrollView showsVerticalScrollIndicator={false}>
-              {(selectedSharedWorkout?.exercises ?? []).map((exercise) => (
+              {(selectedSharedWorkout?.exercises ?? []).map((exercise: SharedWorkoutExercise) => (
                 <View key={`${exercise.exerciseId}-${exercise.name}`} style={{ backgroundColor: "rgba(255,255,255,0.05)", borderRadius: 12, padding: 10, marginBottom: 8 }}>
                   <Text style={{ color: colors.textPrimary, fontSize: 15, fontWeight: "600" }}>{exercise.name}</Text>
                   <Text style={{ color: colors.textSecondary, fontSize: 13, marginTop: 4 }}>

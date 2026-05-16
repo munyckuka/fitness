@@ -58,7 +58,7 @@ export default function Community() {
     return normalized[0].toUpperCase();
   };
 
-  const chatItems = dialogs.map((dialog) => ({
+  const chatItems = dialogs.map((dialog: ChatDialog) => ({
     key: dialog.conversationId,
     name: dialog.peerName,
     login: dialog.peerLogin,
@@ -147,7 +147,7 @@ export default function Community() {
           {isSearchingUsers ? <ActivityIndicator color={colors.accent} style={{ marginTop: 12 }} /> : null}
           {searchError ? <Text style={{ color: "#FF8A80", marginTop: 10 }}>{searchError}</Text> : null}
 
-          {searchResults.map((user) => {
+          {searchResults.map((user: ChatUserSearchResult) => {
             const loginInitial = getLoginInitial(user.login);
 
             return (
@@ -215,7 +215,7 @@ export default function Community() {
             <Text style={{ color: colors.textSecondary, marginTop: 14 }}>Пока нет активных чатов.</Text>
           ) : null}
 
-          {chatItems.map((chat) => (
+          {chatItems.map((chat: typeof chatItems[number]) => (
             <TouchableOpacity
               key={chat.key}
               activeOpacity={0.8}

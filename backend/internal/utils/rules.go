@@ -11,9 +11,9 @@ func RepsByGoal(goal string) int {
 	switch goal {
 	case "strength":
 		return 5
-	case "hypertrophy":
+	case "mass", "hypertrophy":
 		return 10
-	case "endurance":
+	case "weight_loss", "endurance":
 		return 15
 	default:
 		return 10
@@ -49,9 +49,11 @@ func BaseWeight(goal string) float64 {
 	switch goal {
 	case "strength":
 		return 40
-	case "hypertrophy":
+	case "mass", "hypertrophy":
 		return 20
-	default:
+	case "weight_loss", "endurance":
 		return 10
+	default:
+		return 20
 	}
 }

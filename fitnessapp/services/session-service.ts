@@ -19,6 +19,12 @@ type PendingWorkoutCompletion = {
   exercises: CompleteWorkoutExerciseInput[];
 };
 
+type RecoveryMetrics = {
+  sleepHours?: number;
+  sleepQuality?: number; // 1-5
+  stressLevel?: number; // 1-10
+};
+
 export async function getStoredUserId() {
   return AsyncStorage.getItem(USER_ID_KEY);
 }
@@ -114,3 +120,25 @@ export async function getPendingWorkoutCompletion() {
 export async function clearPendingWorkoutCompletion() {
   return AsyncStorage.removeItem(PENDING_WORKOUT_COMPLETION_KEY);
 }
+
+const RECOVERY_METRICS_KEY = "recovery_metrics";
+
+export async function setRecoveryMetrics(payload: RecoveryMetrics) {
+  return AsyncStorage.setItem(RECOVERY_METRICS_KEY, JSON.stringify(payload));
+}
+
+export async function getRecoveryMetrics(): Promise<RecoveryMetrics | null> {
+  const raw = await AsyncStorage.getItem(RECOVERY_METRICS_KEY);
+  if (!raw) return null;
+
+  try {
+    return JSON.parse(raw) as RecoveryMetrics;
+  } catch {
+    return null;
+  }
+}
+
+export async function clearRecoveryMetrics() {
+  return AsyncStorage.removeItem(RECOVERY_METRICS_KEY);
+}
+

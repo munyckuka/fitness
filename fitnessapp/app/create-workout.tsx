@@ -292,7 +292,7 @@ function Step5Frequency({ data, onUpdate }: { data: WorkoutData; onUpdate: (data
       </Text>
 
       <View style={{ gap: 12, marginBottom: 32 }}>
-        {FREQUENCY_OPTIONS.map((frequency) => (
+        {FREQUENCY_OPTIONS.map((frequency: string) => (
           <TouchableOpacity
             key={frequency}
             activeOpacity={0.8}
@@ -528,7 +528,7 @@ export default function CreateWorkout() {
       <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100, paddingTop: 20 }}>
         <View style={{ marginBottom: 32 }}>
           <View style={{ flexDirection: "row", gap: 8, marginBottom: 20 }}>
-            {steps.map((_, index) => (
+            {steps.map((_: unknown, index: number) => (
               <View
                 key={index}
                 style={{

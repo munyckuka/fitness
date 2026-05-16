@@ -40,59 +40,94 @@ func NewWorkoutService(
 	}
 }
 
-func (s *workoutService) GenerateWorkout(ctx context.Context, userID string) (domain.Workout, error) {
+func (s *workoutService) GenerateWorkout(
+	ctx context.Context,
+	userID string,
+	opts GenerateWorkoutOptions,
+) (GenerateWorkoutResult, error) {
 
 	user, err := s.UserRepo.GetByID(ctx, userID)
 	if err != nil {
-		return domain.Workout{}, err
+		return GenerateWorkoutResult{}, err
 	}
 
 	exercises, err := s.ExerciseRepo.GetAll(ctx)
 	if err != nil {
-		return domain.Workout{}, err
+		return GenerateWorkoutResult{}, err
 	}
 
 	progress, err := s.ProgressRepo.GetByUser(ctx, userID)
 	if err != nil {
-		return domain.Workout{}, err
+		return GenerateWorkoutResult{}, err
 	}
 
-	scored := utils.ScoreExercises(exercises, user)
+	logs, err := s.LogRepo.GetByUser(ctx, userID)
+	if err != nil {
+		return GenerateWorkoutResult{}, err
+	}
 
-	cycle := int(time.Now().Unix() % 3)
-	split := utils.GetSplit(user.Frequency, cycle)
+	prefs := resolvePreferences(user, opts.Preferences)
+	dayIndex := resolveDayIndex(opts.DayIndex)
+	rotationIndex := utils.ResolveRotationIndex(dayIndex, prefs.DaysOfWeek)
 
-	selected := utils.SelectExercises(
+	splitPart := utils.ResolveSplitPart(prefs.Split, rotationIndex)
+	muscles := utils.GetMusclesForSplit(splitPart)
+	minRest := utils.MinRestDaysForSplit(prefs.Split, user.Frequency)
+
+	exIDToMuscle := make(map[uuid.UUID]string, len(exercises))
+	for _, ex := range exercises {
+		exIDToMuscle[ex.ID] = ex.MuscleGroup
+	}
+
+	byMuscle := utils.FilterByMuscles(exercises, muscles)
+	pool := utils.FilterByRecovery(byMuscle, logs, exIDToMuscle, minRest, time.Now())
+
+	overtraining := false
+	warning := ""
+	if len(pool) == 0 {
+		overtraining = true
+		warning = WarningOvertraining
+		pool = byMuscle
+		if len(pool) == 0 {
+			pool = exercises
+		}
+	}
+
+	scored := utils.ScoreExercises(pool, user)
+	selected := utils.SelectTopExercises(
 		scored,
-		split,
 		utils.MaxExercisesByFreq(user.Frequency),
+		2,
 	)
 
-	fatigue := utils.CalculateFatigue(
-		progress.TotalVolume,
-		progress.LastWorkout,
-	)
-
+	fatigue := utils.CalculateFatigue(progress.TotalVolume, progress.LastWorkout)
 	phase := utils.GetPhase(progress.WorkoutsCompleted)
+	cycle := int(time.Now().Unix() % 3)
 
-	var workoutExercises []domain.WorkoutExercise
+	// Calculate weight adjustments based on RPE patterns from recent logs
+	rpeAdjustment := utils.CalculateWeightAdjustment(logs, "", 3) // last 3 workouts
 
+	// Calculate recovery adjustment based on sleep and stress
+	recoveryAdjustment := utils.AdjustWeightForRecovery(opts.SleepHours, opts.SleepQuality, opts.StressLevel)
+
+	workoutExercises := make([]domain.WorkoutExercise, 0, len(selected))
 	for _, ex := range selected {
-
 		baseSets := utils.SetsByFreq(user.Frequency)
 		baseReps := utils.RepsByGoal(string(user.FitnessGoal))
 		baseWeight := utils.BaseWeight(string(user.FitnessGoal)) * progress.Modifier
 
-		// periodization
-		sets, reps, weight := utils.ApplyPeriodization(
-			phase,
-			baseSets,
-			baseReps,
-			baseWeight,
-		)
-
-		// fatigue adjustment
+		sets, reps, weight := utils.ApplyPeriodization(phase, baseSets, baseReps, baseWeight)
 		weight = utils.AdjustForFatigue(weight, fatigue)
+		weight *= rpeAdjustment       // Apply RPE-based adjustment
+		weight *= recoveryAdjustment  // Apply recovery-based adjustment
+
+		if overtraining {
+			sets = int(float64(sets) * 0.7)
+			if sets < 1 {
+				sets = 1
+			}
+			weight *= 0.8
+		}
 
 		workoutExercises = append(workoutExercises, domain.WorkoutExercise{
 			ExerciseID:  ex.ID,
@@ -109,16 +144,61 @@ func (s *workoutService) GenerateWorkout(ctx context.Context, userID string) (do
 	workout := domain.Workout{
 		ID:        uuid.New(),
 		UserID:    user.ID,
+		DayIndex:  dayIndex,
+		SplitPart: splitPart,
 		Exercises: workoutExercises,
 		Status:    domain.Created,
 		CreatedAt: time.Now(),
 	}
 
-	if err := s.WorkoutRepo.Save(ctx, workout); err != nil {
-		return domain.Workout{}, err
+	if opts.PlannedFor != nil {
+		workout.PlannedFor = *opts.PlannedFor
 	}
 
-	return workout, nil
+	if err := s.WorkoutRepo.Save(ctx, workout); err != nil {
+		return GenerateWorkoutResult{}, err
+	}
+
+	if opts.Preferences != nil && opts.Preferences.Remember {
+		persist := *opts.Preferences
+		persist.UserID = user.ID
+		if err := s.UserRepo.UpsertPreferences(ctx, persist); err != nil {
+			return GenerateWorkoutResult{}, err
+		}
+	}
+
+	return GenerateWorkoutResult{Workout: workout, Warning: warning}, nil
+}
+
+func resolvePreferences(user domain.User, override *domain.TrainingPreferences) domain.TrainingPreferences {
+	if override != nil {
+		p := *override
+		p.UserID = user.ID
+		if p.Split == "" {
+			p.Split = domain.SplitFullBody
+		}
+		return p
+	}
+	if user.Preferences != nil {
+		return *user.Preferences
+	}
+	return domain.TrainingPreferences{
+		UserID:     user.ID,
+		Split:      domain.SplitFullBody,
+		DaysOfWeek: []int{1, 3, 5},
+		Remember:   false,
+	}
+}
+
+func resolveDayIndex(override *int) int {
+	if override != nil {
+		idx := *override
+		if idx < 0 {
+			idx = 0
+		}
+		return idx
+	}
+	return int(time.Now().Weekday())
 }
 
 func (s *workoutService) CompleteWorkout(
@@ -192,4 +272,120 @@ func (s *workoutService) ImportSharedWorkout(ctx context.Context, userID string,
 	}
 
 	return workout, nil
+}
+
+func (s *workoutService) ReplaceExercise(
+	ctx context.Context,
+	userID string,
+	workoutID string,
+	oldExerciseID string,
+	newExerciseID string,
+) error {
+
+	workout, err := s.WorkoutRepo.GetByID(ctx, uuid.MustParse(workoutID))
+	if err != nil {
+		return err
+	}
+	if workout.UserID.String() != userID {
+		return errors.New("unauthorized")
+	}
+
+	exercises, err := s.ExerciseRepo.GetAll(ctx)
+	if err != nil {
+		return err
+	}
+	var newMuscle string
+	for _, ex := range exercises {
+		if ex.ID.String() == newExerciseID {
+			newMuscle = ex.MuscleGroup
+			break
+		}
+	}
+	if newMuscle == "" {
+		return errors.New("new exercise not found")
+	}
+	muscles := utils.GetMusclesForSplit(workout.SplitPart)
+	found := false
+	for _, m := range muscles {
+		if m == newMuscle {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return errors.New("new exercise does not fit the split part")
+	}
+
+	return s.WorkoutRepo.ReplaceExercise(ctx, workoutID, oldExerciseID, newExerciseID)
+}
+
+func (s *workoutService) GenerateWeekWorkouts(
+	ctx context.Context,
+	userID string,
+	startDate time.Time,
+) ([]domain.Workout, error) {
+
+	user, err := s.UserRepo.GetByID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	prefs := user.Preferences
+	if prefs == nil {
+		prefs = &domain.TrainingPreferences{
+			UserID:     user.ID,
+			Split:      domain.SplitFullBody,
+			DaysOfWeek: []int{1, 3, 5},
+			Remember:   false,
+		}
+	}
+
+	endDate := startDate.AddDate(0, 0, 7)
+	existing, err := s.WorkoutRepo.GetByUserBetween(ctx, userID, startDate, endDate)
+	if err != nil {
+		return nil, err
+	}
+
+	existingMap := make(map[string]domain.Workout)
+	for _, w := range existing {
+		if w.Status == domain.Created || w.Status == domain.InProgress {
+			dateStr := w.PlannedFor.Format("2006-01-02")
+			existingMap[dateStr] = w
+		}
+	}
+
+	var generated []domain.Workout
+	var virtualLogs []domain.WorkoutLog
+
+	for _, dayIndex := range prefs.DaysOfWeek {
+		date := startDate.AddDate(0, 0, dayIndex)
+		dateStr := date.Format("2006-01-02")
+		if _, exists := existingMap[dateStr]; exists {
+			continue // Skip if already exists
+		}
+
+		opts := GenerateWorkoutOptions{
+			DayIndex:    &dayIndex,
+			Preferences: prefs,
+			PlannedFor:  &date,
+		}
+
+		result, err := s.GenerateWorkout(ctx, userID, opts)
+		if err != nil {
+			return nil, err
+		}
+
+		generated = append(generated, result.Workout)
+
+		virtualLog := domain.WorkoutLog{
+			ID:        uuid.New(),
+			UserID:    user.ID,
+			WorkoutID: result.Workout.ID,
+			Exercises: []domain.ExerciseLog{},
+			Timestamp: date.Unix(),
+		}
+		virtualLogs = append(virtualLogs, virtualLog)
+	}
+
+	return generated, nil
 }

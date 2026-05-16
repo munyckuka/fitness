@@ -9,7 +9,7 @@ import (
 )
 
 func MapUserToDTO(u domain.User) dto.UserResponse {
-	return dto.UserResponse{
+	resp := dto.UserResponse{
 		ID:           u.ID.String(),
 		Name:         u.Name,
 		Login:        u.Login,
@@ -21,10 +21,33 @@ func MapUserToDTO(u domain.User) dto.UserResponse {
 		Frequency:    u.Frequency,
 		Equipment:    u.Equipment,
 	}
+	if u.Preferences != nil {
+		resp.Preferences = &dto.TrainingPreferencesDTO{
+			DaysOfWeek: u.Preferences.DaysOfWeek,
+			Split:      string(u.Preferences.Split),
+			Remember:   u.Preferences.Remember,
+		}
+	}
+	return resp
+}
+
+func MapPreferencesDTOToDomain(d dto.TrainingPreferencesDTO) domain.TrainingPreferences {
+	split := domain.SplitType(d.Split)
+	switch split {
+	case domain.SplitPPL, domain.SplitUpperLower, domain.SplitFullBody:
+		// ok
+	default:
+		split = domain.SplitFullBody
+	}
+	return domain.TrainingPreferences{
+		DaysOfWeek: NormalizeDaysOfWeek(d.DaysOfWeek),
+		Split:      split,
+		Remember:   d.Remember,
+	}
 }
 
 func MapWorkoutToDTO(w domain.Workout) dto.WorkoutResponse {
-	var exercises []dto.WorkoutExerciseDTO
+	exercises := make([]dto.WorkoutExerciseDTO, 0, len(w.Exercises))
 
 	for _, e := range w.Exercises {
 		exercises = append(exercises, dto.WorkoutExerciseDTO{
@@ -41,11 +64,14 @@ func MapWorkoutToDTO(w domain.Workout) dto.WorkoutResponse {
 	return dto.WorkoutResponse{
 		ID:        w.ID.String(),
 		UserID:    w.UserID.String(),
+		DayIndex:  w.DayIndex,
+		SplitPart: w.SplitPart,
+		Status:    string(w.Status),
 		Exercises: exercises,
 	}
 }
 
-func MapToWorkoutLog(userID, workoutID string, req dto.CompleteWorkoutRequest) domain.WorkoutLog {
+func MapToWorkoutLog(userID string, workoutID string, req dto.CompleteWorkoutRequest) domain.WorkoutLog {
 	var exercises []domain.ExerciseLog
 
 	for _, ex := range req.Exercises {
@@ -55,6 +81,7 @@ func MapToWorkoutLog(userID, workoutID string, req dto.CompleteWorkoutRequest) d
 			sets = append(sets, domain.SetLog{
 				Reps:   s.Reps,
 				Weight: s.Weight,
+				RPE:    s.RPE, // Include RPE
 			})
 		}
 
@@ -62,38 +89,25 @@ func MapToWorkoutLog(userID, workoutID string, req dto.CompleteWorkoutRequest) d
 		parsedExerciseId, _ := uuid.Parse(ex.ExerciseID)
 
 		exercises = append(exercises, domain.ExerciseLog{
-			ExerciseID: parsedExerciseId,
-			Sets:       sets,
+			ExerciseID:  parsedExerciseId,
+			Sets:        sets,
+			RPE:         ex.RPE,
+			FormQuality: ex.FormQuality,
 		})
 	}
 
 	parsedWorkoutId, _ := uuid.Parse(workoutID)
+	parsedUserId, _ := uuid.Parse(userID)
 
 	return domain.WorkoutLog{
-		ID:        uuid.New(),
-		UserID:    userID,
-		WorkoutID: parsedWorkoutId,
-		Exercises: exercises,
-		Timestamp: time.Now().Unix(),
-	}
-}
-
-func MapUpdateUserDTOToDomain(req dto.UpdateUserRequest) domain.User {
-	name := req.Name
-	if name == "" {
-		name = "Пользователь"
-	}
-
-	return domain.User{
-		Name:         name,
-		Login:        req.Login,
-		Age:          req.Age,
-		Height:       req.Height,
-		Weight:       req.Weight,
-		FitnessLevel: req.FitnessLevel,
-		FitnessGoal:  domain.Goal(req.FitnessGoal),
-		Frequency:    req.Frequency,
-		Equipment:    req.Equipment,
+		ID:           uuid.New(),
+		UserID:       parsedUserId,
+		WorkoutID:    parsedWorkoutId,
+		Exercises:    exercises,
+		Timestamp:    time.Now().Unix(),
+		SleepHours:   req.SleepHours,
+		SleepQuality: req.SleepQuality,
+		StressLevel:  req.StressLevel,
 	}
 }
 
@@ -122,6 +136,11 @@ func MapUpdateRequestToUser(req dto.UpdateUserRequest, existing domain.User) dom
 		existing.FitnessGoal = domain.GoalWeightLoss
 	default:
 		existing.FitnessGoal = domain.GoalStrength
+	}
+
+	if req.Preferences != nil {
+		prefs := MapPreferencesDTOToDomain(*req.Preferences)
+		existing.Preferences = &prefs
 	}
 
 	return existing

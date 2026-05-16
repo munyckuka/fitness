@@ -9,6 +9,7 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 )
 
 type UserRepository struct {
@@ -41,6 +42,15 @@ func (r *UserRepository) Create(ctx context.Context, user domain.User) (domain.U
 	if err := upsertUserEquipment(ctx, tx, user.ID, user.Equipment); err != nil {
 		tx.Rollback()
 		return domain.User{}, err
+	}
+
+	if user.Preferences != nil {
+		prefs := *user.Preferences
+		prefs.UserID = user.ID
+		if err := upsertUserPreferences(ctx, tx, prefs); err != nil {
+			tx.Rollback()
+			return domain.User{}, err
+		}
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -88,6 +98,15 @@ func (r *UserRepository) Update(ctx context.Context, user domain.User) (domain.U
 		return domain.User{}, err
 	}
 
+	if user.Preferences != nil {
+		prefs := *user.Preferences
+		prefs.UserID = user.ID
+		if err := upsertUserPreferences(ctx, tx, prefs); err != nil {
+			tx.Rollback()
+			return domain.User{}, err
+		}
+	}
+
 	if err := tx.Commit(); err != nil {
 		return domain.User{}, err
 	}
@@ -125,6 +144,11 @@ func (r *UserRepository) GetByID(ctx context.Context, id string) (domain.User, e
 		return domain.User{}, err
 	}
 
+	user.Preferences, err = r.getUserPreferences(ctx, parsedUuid)
+	if err != nil {
+		return domain.User{}, err
+	}
+
 	return user, nil
 }
 
@@ -149,6 +173,11 @@ func (r *UserRepository) GetByLogin(ctx context.Context, login string) (domain.U
 
 	user.FitnessGoal = domain.Goal(goalStr)
 	user.Equipment, err = r.getUserEquipment(ctx, user.ID)
+	if err != nil {
+		return domain.User{}, err
+	}
+
+	user.Preferences, err = r.getUserPreferences(ctx, user.ID)
 	if err != nil {
 		return domain.User{}, err
 	}
@@ -195,6 +224,73 @@ func (r *UserRepository) SearchByLogin(ctx context.Context, currentUserID string
 	}
 
 	return users, rows.Err()
+}
+
+func (r *UserRepository) UpsertPreferences(ctx context.Context, prefs domain.TrainingPreferences) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+
+	if err := upsertUserPreferences(ctx, tx, prefs); err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return tx.Commit()
+}
+
+func (r *UserRepository) getUserPreferences(ctx context.Context, userID uuid.UUID) (*domain.TrainingPreferences, error) {
+	var (
+		days     pq.Int64Array
+		split    string
+		remember bool
+	)
+
+	err := r.db.QueryRowContext(ctx, `
+		SELECT days_of_week, split, remember
+		FROM training_preferences
+		WHERE user_id = $1
+	`, userID).Scan(&days, &split, &remember)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	out := domain.TrainingPreferences{
+		UserID:     userID,
+		Split:      domain.SplitType(split),
+		Remember:   remember,
+		DaysOfWeek: make([]int, 0, len(days)),
+	}
+	for _, d := range days {
+		out.DaysOfWeek = append(out.DaysOfWeek, int(d))
+	}
+	return &out, nil
+}
+
+func upsertUserPreferences(ctx context.Context, tx *sql.Tx, prefs domain.TrainingPreferences) error {
+	days := make(pq.Int64Array, 0, len(prefs.DaysOfWeek))
+	for _, d := range prefs.DaysOfWeek {
+		days = append(days, int64(d))
+	}
+	split := string(prefs.Split)
+	if split == "" {
+		split = string(domain.SplitFullBody)
+	}
+
+	_, err := tx.ExecContext(ctx, `
+		INSERT INTO training_preferences (user_id, days_of_week, split, remember, updated_at)
+		VALUES ($1, $2, $3, $4, now())
+		ON CONFLICT (user_id)
+		DO UPDATE SET days_of_week = EXCLUDED.days_of_week,
+		              split        = EXCLUDED.split,
+		              remember     = EXCLUDED.remember,
+		              updated_at   = now()
+	`, prefs.UserID, days, split, prefs.Remember)
+	return err
 }
 
 func (r *UserRepository) getUserEquipment(ctx context.Context, userID uuid.UUID) ([]string, error) {

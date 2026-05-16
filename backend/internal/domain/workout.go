@@ -16,11 +16,14 @@ const (
 )
 
 type Workout struct {
-	ID        uuid.UUID
-	UserID    uuid.UUID
-	Exercises []WorkoutExercise
-	Status    WorkoutStatus
-	CreatedAt time.Time
+	ID         uuid.UUID
+	UserID     uuid.UUID
+	DayIndex   int
+	SplitPart  string
+	PlannedFor time.Time
+	Exercises  []WorkoutExercise
+	Status     WorkoutStatus
+	CreatedAt  time.Time
 }
 
 type WorkoutExercise struct {

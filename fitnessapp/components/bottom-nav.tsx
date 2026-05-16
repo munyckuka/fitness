@@ -43,7 +43,7 @@ export function BottomNav() {
         elevation: 6,
       }}
     >
-      {NAV_ITEMS.map((item) => {
+      {NAV_ITEMS.map((item: typeof NAV_ITEMS[number]) => {
         const Icon = IconComponents[item.iconType];
         const isActive = item.route === currentRoute;
 

@@ -135,16 +135,16 @@ export function MonthCalendar({
       </Text>
 
       <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 8 }}>
-        {WEEKDAYS.map((day) => (
+        {WEEKDAYS.map((day: string) => (
           <Text key={day} style={{ color: isWeekendsVariant ? colors.textPrimary : colors.textSecondary, fontSize: 13, width: 30, textAlign: "center" }}>
             {day}
           </Text>
         ))}
       </View>
 
-      {calendar.map((week, rowIndex) => (
+      {calendar.map((week: CalendarDay[], rowIndex: number) => (
         <View key={`week-${rowIndex}`} style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 8 }}>
-          {week.map((day, columnIndex) => {
+          {week.map((day: CalendarDay, columnIndex: number) => {
             const isWeekend = columnIndex >= 5;
             const isSelected = variant === "selected-day" && day.isCurrentMonth && day.dayNumber === highlightedDay;
             const isWorkoutDay = isWorkoutDaysVariant && day.isCurrentMonth && workoutDays.includes(day.dayNumber);

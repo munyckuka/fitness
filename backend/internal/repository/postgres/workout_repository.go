@@ -19,9 +19,19 @@ func NewWorkoutRepository(db *sql.DB) *WorkoutRepository {
 
 func (r *WorkoutRepository) Save(ctx context.Context, w domain.Workout) error {
 
+	splitPart := w.SplitPart
+	if splitPart == "" {
+		splitPart = "fullbody"
+	}
+
+	plannedFor := w.PlannedFor
+	if plannedFor.IsZero() {
+		plannedFor = w.CreatedAt
+	}
+
 	query := `
-	INSERT INTO workouts (id, user_id, status, created_at)
-	VALUES ($1, $2, $3, $4)
+	INSERT INTO workouts (id, user_id, status, created_at, day_index, split_part, planned_for)
+	VALUES ($1, $2, $3, $4, $5, $6, $7)
 	`
 
 	_, err := r.db.ExecContext(ctx, query,
@@ -29,6 +39,9 @@ func (r *WorkoutRepository) Save(ctx context.Context, w domain.Workout) error {
 		w.UserID,
 		w.Status,
 		w.CreatedAt,
+		w.DayIndex,
+		splitPart,
+		plannedFor,
 	)
 
 	if err != nil {
@@ -37,9 +50,9 @@ func (r *WorkoutRepository) Save(ctx context.Context, w domain.Workout) error {
 
 	for _, ex := range w.Exercises {
 		_, err := r.db.ExecContext(ctx, `
-		INSERT INTO workout_exercises (workout_id, exercise_id, sets, reps, weight, rest)
-		VALUES ($1, $2, $3, $4, $5, $6)
-		`, w.ID, ex.ExerciseID, ex.Sets, ex.Reps, ex.Weight, ex.Rest)
+		INSERT INTO workout_exercises (workout_id, exercise_id, sets, reps, weight, rest, cycle)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		`, w.ID, ex.ExerciseID, ex.Sets, ex.Reps, ex.Weight, ex.Rest, ex.Cycle)
 
 		if err != nil {
 			return err
@@ -75,6 +88,23 @@ func (r *WorkoutRepository) GetByUser(ctx context.Context, userID string) ([]dom
 	return r.getWorkouts(ctx, `WHERE w.user_id = $1`, parsedID)
 }
 
+func (r *WorkoutRepository) GetByUserBetween(
+	ctx context.Context,
+	userID string,
+	from time.Time,
+	to time.Time,
+) ([]domain.Workout, error) {
+	parsedID, err := uuid.Parse(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	return r.getWorkouts(ctx,
+		`WHERE w.user_id = $1 AND w.planned_for >= $2 AND w.planned_for < $3`,
+		parsedID, from, to,
+	)
+}
+
 func (r *WorkoutRepository) UpdateStatus(
 	ctx context.Context,
 	workoutID string,
@@ -90,19 +120,37 @@ func (r *WorkoutRepository) UpdateStatus(
 	return err
 }
 
+func (r *WorkoutRepository) ReplaceExercise(
+	ctx context.Context,
+	workoutID string,
+	oldExerciseID string,
+	newExerciseID string,
+) error {
+
+	_, err := r.db.ExecContext(ctx, `
+		UPDATE workout_exercises SET exercise_id=$1 WHERE workout_id=$2 AND exercise_id=$3
+	`, newExerciseID, workoutID, oldExerciseID)
+
+	return err
+}
+
 func (r *WorkoutRepository) getWorkouts(ctx context.Context, whereClause string, args ...any) ([]domain.Workout, error) {
 	query := `
 		SELECT w.id,
 		       w.user_id,
 		       w.status,
 		       w.created_at,
+		       w.day_index,
+		       w.split_part,
+		       w.planned_for,
 		       we.exercise_id,
 		       e.name,
 		       e.muscle_group,
 		       we.sets,
 		       we.reps,
 		       we.rest,
-		       we.weight
+		       we.weight,
+		       we.cycle
 		FROM workouts w
 		LEFT JOIN workout_exercises we ON we.workout_id = w.id
 		LEFT JOIN exercises e ON e.id = we.exercise_id
@@ -125,6 +173,9 @@ func (r *WorkoutRepository) getWorkouts(ctx context.Context, whereClause string,
 			userID      uuid.UUID
 			status      string
 			createdAt   time.Time
+			dayIndex    int
+			splitPart   string
+			plannedFor  time.Time
 			exerciseID  sql.NullString
 			name        sql.NullString
 			muscleGroup sql.NullString
@@ -132,20 +183,25 @@ func (r *WorkoutRepository) getWorkouts(ctx context.Context, whereClause string,
 			reps        sql.NullInt32
 			rest        sql.NullInt32
 			weight      sql.NullFloat64
+			cycle       sql.NullInt32
 		)
 
-		if err := rows.Scan(&workoutID, &userID, &status, &createdAt, &exerciseID, &name, &muscleGroup, &sets, &reps, &rest, &weight); err != nil {
+		if err := rows.Scan(&workoutID, &userID, &status, &createdAt, &dayIndex, &splitPart, &plannedFor,
+			&exerciseID, &name, &muscleGroup, &sets, &reps, &rest, &weight, &cycle); err != nil {
 			return nil, err
 		}
 
 		workout := workoutMap[workoutID]
 		if workout == nil {
 			workout = &domain.Workout{
-				ID:        workoutID,
-				UserID:    userID,
-				Status:    domain.WorkoutStatus(status),
-				CreatedAt: createdAt,
-				Exercises: []domain.WorkoutExercise{},
+				ID:         workoutID,
+				UserID:     userID,
+				Status:     domain.WorkoutStatus(status),
+				CreatedAt:  createdAt,
+				DayIndex:   dayIndex,
+				SplitPart:  splitPart,
+				PlannedFor: plannedFor,
+				Exercises:  []domain.WorkoutExercise{},
 			}
 			workoutMap[workoutID] = workout
 			order = append(order, workoutID)
@@ -165,6 +221,7 @@ func (r *WorkoutRepository) getWorkouts(ctx context.Context, whereClause string,
 				Reps:        int(reps.Int32),
 				Rest:        int(rest.Int32),
 				Weight:      weight.Float64,
+				Cycle:       int(cycle.Int32),
 			})
 		}
 	}

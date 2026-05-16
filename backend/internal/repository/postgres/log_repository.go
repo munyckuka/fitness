@@ -5,6 +5,8 @@ import (
 	"context"
 	"database/sql"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type LogRepository struct {
@@ -71,12 +73,17 @@ func (r *LogRepository) GetByUser(
 	userID string,
 ) ([]domain.WorkoutLog, error) {
 
+	parsedUserID, err := uuid.Parse(userID)
+	if err != nil {
+		return nil, err
+	}
+
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT id, workout_id, created_at
 		FROM workout_logs
 		WHERE user_id = $1
 		ORDER BY created_at DESC
-	`, userID)
+	`, parsedUserID)
 
 	if err != nil {
 		return nil, err
@@ -96,7 +103,7 @@ func (r *LogRepository) GetByUser(
 
 		log.Timestamp = createdAt.Unix()
 
-		log.UserID = userID
+		log.UserID = parsedUserID
 
 		// exercise_logs
 		exRows, err := r.db.QueryContext(ctx, `

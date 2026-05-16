@@ -8,6 +8,7 @@ import {
   getUserWorkouts,
   type CompleteWorkoutExerciseInput,
   type WorkoutSummary,
+  type WorkoutExercise,
 } from "@/services/fitness-service";
 import {
   clearPendingWorkoutCompletion,
@@ -37,6 +38,7 @@ export default function TrainingExercise() {
   const weightLabel = typeof currentExercise?.weight === "number" ? `${currentExercise.weight} кг` : null;
   const [completedSets, setCompletedSets] = useState<boolean[]>(Array.from({ length: setCount }, () => false));
   const [completedSetsByExercise, setCompletedSetsByExercise] = useState<Record<string, boolean[]>>({});
+  const [setQualitiesByExercise, setSetQualitiesByExercise] = useState<Record<string, (number | undefined)[]>>({});
   const [timerSeconds, setTimerSeconds] = useState<number>(restSeconds);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
 
@@ -104,6 +106,8 @@ export default function TrainingExercise() {
 
     const currentProgress = completedSetsByExercise[currentExercise.id] ?? Array.from({ length: setCount }, () => false);
     setCompletedSets(currentProgress);
+    const existingQualities = setQualitiesByExercise[currentExercise.id] ?? Array.from({ length: setCount }, () => undefined);
+    setSetQualitiesByExercise((prev: Record<string, (number | undefined)[]>) => ({ ...prev, [currentExercise.id]: existingQualities }));
     setTimerSeconds(restSeconds);
     setIsTimerRunning(false);
   }, [completedSetsByExercise, currentExercise, currentIndex, restSeconds, setCount]);
@@ -114,7 +118,7 @@ export default function TrainingExercise() {
     }
 
     const intervalId = setInterval(() => {
-      setTimerSeconds((prev) => {
+      setTimerSeconds((prev: number) => {
         if (prev <= 1) {
           setIsTimerRunning(false);
           return 0;
@@ -131,7 +135,7 @@ export default function TrainingExercise() {
       return;
     }
 
-    setCompletedSets((prev) => {
+    setCompletedSets((prev: boolean[]) => {
       const next = prev.map((value, idx) => (idx === index ? !value : value));
       const nextProgress = {
         ...completedSetsByExercise,
@@ -140,6 +144,16 @@ export default function TrainingExercise() {
 
       setCompletedSetsByExercise(nextProgress);
       void setWorkoutProgress(workout.id, nextProgress);
+
+      // initialize quality for this set if it was just completed
+        setSetQualitiesByExercise((prev: Record<string, (number | undefined)[]>) => {
+            const existing = prev[currentExercise.id] ?? Array.from({ length: setCount }, () => undefined);
+        const nextQualities = existing.slice();
+        if (next[index] && nextQualities[index] === undefined) {
+          nextQualities[index] = 6; // default rpe
+        }
+        return { ...prev, [currentExercise.id]: nextQualities };
+      });
 
       return next;
     });
@@ -158,7 +172,7 @@ export default function TrainingExercise() {
       return;
     }
 
-    setIsTimerRunning((prev) => !prev);
+    setIsTimerRunning((prev: boolean) => !prev);
   };
 
   const handleTimerReset = () => {
@@ -199,12 +213,18 @@ export default function TrainingExercise() {
       };
 
       const exercisesPayload: CompleteWorkoutExerciseInput[] = workout.exercises
-        .map((exercise) => {
-          const completedCount = (progressMap[exercise.id] ?? []).filter(Boolean).length;
-          const sets = Array.from({ length: completedCount }, () => ({
-            reps: exercise.reps,
-            weight: typeof exercise.weight === "number" ? exercise.weight : 0,
-          }));
+          .map((exercise: WorkoutExercise) => {
+               const exerciseProgress = (progressMap[exercise.id] ?? []) as boolean[];
+               const qualities = (setQualitiesByExercise[exercise.id] ?? []) as (number | undefined)[];
+
+               const sets = exerciseProgress
+                 .map((done: boolean, idx: number) => ({ done, idx }))
+                 .filter((item: { done: boolean; idx: number }) => item.done)
+                 .map((item: { done: boolean; idx: number }) => ({
+                   reps: exercise.reps,
+                   weight: typeof exercise.weight === "number" ? exercise.weight : 0,
+                   rpe: qualities[item.idx] ?? undefined,
+                 }));
 
           if (!isUUID(exercise.id) || sets.length === 0) {
             return null;
@@ -215,7 +235,7 @@ export default function TrainingExercise() {
             sets,
           };
         })
-        .filter((item): item is CompleteWorkoutExerciseInput => item !== null);
+        .filter((item: CompleteWorkoutExerciseInput | null): item is CompleteWorkoutExerciseInput => item !== null);
 
       await setWorkoutProgress(workout.id, progressMap);
       await setPendingWorkoutCompletion({
@@ -298,26 +318,62 @@ export default function TrainingExercise() {
             </View>
           </View>
 
-          {completedSets.map((isDone, idx) => (
-            <TouchableOpacity
-              key={`set-${idx}`}
-              activeOpacity={0.75}
-              onPress={() => toggleSet(idx)}
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                marginBottom: 12,
-              }}
-            >
-              <MaterialIcons
-                name={isDone ? "check-box" : "check-box-outline-blank"}
-                size={30}
-                color={isDone ? colors.accent : colors.textPrimary}
-              />
-              <Text style={{ color: colors.textPrimary, fontSize: 18, marginLeft: 12 }}>
-                Подход {idx + 1}: {repsPerSet} повторений
-              </Text>
-            </TouchableOpacity>
+          {completedSets.map((isDone: boolean, idx: number) => (
+                <TouchableOpacity
+                  key={`set-${idx}`}
+                  activeOpacity={0.75}
+                  onPress={() => toggleSet(idx)}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    marginBottom: 12,
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <View style={{ flexDirection: "row", alignItems: "center" }}>
+                    <MaterialIcons
+                      name={isDone ? "check-box" : "check-box-outline-blank"}
+                      size={30}
+                      color={isDone ? colors.accent : colors.textPrimary}
+                    />
+                    <Text style={{ color: colors.textPrimary, fontSize: 18, marginLeft: 12 }}>
+                      Подход {idx + 1}: {repsPerSet} повторений
+                    </Text>
+                  </View>
+
+                  {isDone ? (
+                    <View style={{ flexDirection: "row", gap: 6 }}>
+                      {Array.from({ length: 10 }).map((_, vIdx) => {
+                        const value = vIdx + 1;
+                        const qualities = setQualitiesByExercise[currentExercise?.id ?? ""] ?? [];
+                        const selected = qualities[idx] === value;
+                        return (
+                          <TouchableOpacity
+                            key={`q-${idx}-${value}`}
+                            onPress={() =>
+                              setSetQualitiesByExercise((prev: Record<string, (number | undefined)[]>) => {
+                                const existing = prev[currentExercise?.id ?? ""] ?? Array.from({ length: setCount }, () => undefined);
+                                const next = existing.slice();
+                                next[idx] = value;
+                                return { ...prev, [currentExercise?.id ?? ""]: next };
+                              })
+                            }
+                            style={{
+                              width: 28,
+                              height: 28,
+                              borderRadius: 6,
+                              justifyContent: "center",
+                              alignItems: "center",
+                              backgroundColor: selected ? colors.accent : colors.secondary,
+                            }}
+                          >
+                            <Text style={{ color: colors.textPrimary, fontSize: 12 }}>{value}</Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  ) : null}
+                </TouchableOpacity>
           ))}
 
           <View style={{ marginTop: 6 }}>

@@ -7,6 +7,8 @@ import {
   clearWorkoutProgress,
   getPendingWorkoutCompletion,
   getStoredUserId,
+  getRecoveryMetrics,
+  clearRecoveryMetrics,
 } from "@/services/session-service";
 import { colors } from "./theme";
 
@@ -14,7 +16,9 @@ const SCALE_VALUES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
 export default function TrainingFeedback() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ workoutId?: string }>();
+  const params = useLocalSearchParams();
+  const rawWorkoutId = params.workoutId;
+  const paramWorkoutId = Array.isArray(rawWorkoutId) ? rawWorkoutId[0] : rawWorkoutId;
   const [difficulty, setDifficulty] = useState(5);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,22 +47,26 @@ export default function TrainingFeedback() {
 
       const userId = await getStoredUserId();
       const pending = await getPendingWorkoutCompletion();
-      const workoutId = params.workoutId ?? pending?.workoutId;
+      const workoutId = paramWorkoutId ?? pending?.workoutId;
 
       if (!userId || !workoutId || !pending) {
         setError("Не удалось завершить тренировку: отсутствуют данные сессии.");
         return;
       }
 
+      const recovery = await getRecoveryMetrics();
+
       await completeWorkout({
         userId,
         workoutId,
         difficulty,
         exercises: pending.exercises,
+        recovery: recovery ?? undefined,
       });
 
       await clearPendingWorkoutCompletion();
       await clearWorkoutProgress();
+      await clearRecoveryMetrics();
       router.replace("/progress");
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "Не удалось отправить фидбек.");
