@@ -109,8 +109,8 @@ WITH catalog AS (
 INSERT INTO public.exercises (id, name, muscle_group, required_equipment, difficulty_level)
 SELECT gen_random_uuid(), c.name || ' #' || s.rn, c.muscle, c.equipment, c.difficulty
 FROM (
-  SELECT *, row_number() over () as rn FROM generate_series(1,200) as s_dummy
-) s(rn)
+  SELECT row_number() over () as rn FROM generate_series(1,200)
+) s
 CROSS JOIN LATERAL (
   SELECT name, muscle, equipment, difficulty FROM catalog ORDER BY random() LIMIT 1
 ) c;
