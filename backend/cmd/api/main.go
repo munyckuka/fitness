@@ -14,9 +14,13 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 )
 
 func main() {
+	// Загружает .env если файл существует; в проде переменные задаются на уровне ОС
+	_ = godotenv.Load()
+
 	connStr := os.Getenv("DATABASE_URL")
 	if connStr == "" {
 		host := getenv("DB_HOST", "localhost")
