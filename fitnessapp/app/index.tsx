@@ -4,8 +4,11 @@ import { useRouter } from "expo-router";
 import { colors } from "./theme";
 import { MonthCalendar } from "../components/month-calendar";
 import { getTipOfTheDay } from "@/services/tips-service";
-import { getUser, getUserWorkouts, getProgress, type UserProfile, type WorkoutSummary } from "@/services/fitness-service";
+import { type UserProfile, type WorkoutSummary } from "@/services/fitness-service";
 import { getStoredUserId, setStoredWorkoutId } from "@/services/session-service";
+import { getProfileOfflineFirst } from "@/services/profile-cache";
+import { getWorkoutsOfflineFirst } from "@/services/workout-cache";
+import { getProgressOfflineFirst } from "@/services/progress-cache";
 
 const MONTH_NAMES_GENITIVE = [
   "января",
@@ -47,47 +50,48 @@ export default function Index() {
     let isMounted = true;
 
     const loadDashboard = async () => {
+      const userId = await getStoredUserId();
+
+      if (!userId) {
+        if (isMounted) router.replace("/welcome");
+        return;
+      }
+
+      const currentMonthKey = getMonthKey(today);
+
+      const applyWorkoutDays = (dates: string[]) => {
+        const days = dates
+          .filter((d) => d.startsWith(currentMonthKey))
+          .map((d) => Number(d.slice(-2)));
+        if (isMounted) setWorkoutDays(days);
+      };
+
       try {
-        const userId = await getStoredUserId();
-
-        if (!userId) {
-          if (isMounted) {
-            router.replace("/welcome");
-          }
-          return;
-        }
-
-        const [loadedUser, workouts, progress] = await Promise.all([
-          getUser(userId),
-          getUserWorkouts(userId),
-          getProgress(userId),
+        // All three load from cache immediately; API updates arrive via callbacks.
+        const [cachedUser, cachedWorkouts, cachedProgress] = await Promise.all([
+          getProfileOfflineFirst(userId, (fresh) => { if (isMounted) setUser(fresh); }),
+          getWorkoutsOfflineFirst(userId, (fresh) => { if (isMounted) setWorkout(fresh[0] ?? null); }),
+          getProgressOfflineFirst(userId, (fresh) => applyWorkoutDays(fresh.workoutDates)),
         ]);
 
-        if (!isMounted) {
-          return;
-        }
+        if (!isMounted) return;
 
-        setUser(loadedUser);
-        setWorkout(workouts[0] ?? null);
+        if (cachedUser) setUser(cachedUser);
+        setWorkout(cachedWorkouts[0] ?? null);
+        applyWorkoutDays(cachedProgress.workoutDates);
 
-        // Extract current month's workout days
-        const currentMonthKey = getMonthKey(today);
-        const monthWorkoutDays = progress.workoutDates
-          .filter((date) => date.startsWith(currentMonthKey))
-          .map((date) => Number(date.slice(-2)));
-        setWorkoutDays(monthWorkoutDays);
+        // Keep spinner only on first launch when all caches are empty.
+        if (cachedUser || cachedWorkouts.length > 0) setIsLoading(false);
       } catch (loadError) {
         if (isMounted) {
           setError(loadError instanceof Error ? loadError.message : "Не удалось загрузить данные с сервера.");
         }
       } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
+        if (isMounted) setIsLoading(false);
       }
     };
 
-    loadDashboard();
+    void loadDashboard();
 
     return () => {
       isMounted = false;
