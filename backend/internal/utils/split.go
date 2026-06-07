@@ -13,10 +13,10 @@ var ulSplit = []string{"upper", "lower"}
 var splitMuscles = map[string][]string{
 	"push":     {"chest", "shoulders", "triceps"},
 	"pull":     {"back", "biceps"},
-	"legs":     {"legs"},
-	"upper":    {"chest", "back", "shoulders", "biceps", "triceps"},
-	"lower":    {"legs"},
-	"fullbody": {"chest", "back", "legs", "shoulders", "biceps", "triceps"},
+	"legs":     {"legs", "calves", "glutes", "core"},
+	"upper":    {"chest", "back", "shoulders", "biceps", "triceps", "core"},
+	"lower":    {"legs", "calves", "glutes", "core"},
+	"fullbody": {"chest", "back", "legs", "shoulders", "biceps", "triceps", "calves", "glutes", "core", "full body"},
 }
 
 // ResolveSplitPart returns the split part (push/pull/legs/upper/lower/fullbody)
