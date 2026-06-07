@@ -20,10 +20,11 @@ type GenerateWeekWorkoutsRequest struct {
 }
 
 type ExerciseLogRequest struct {
-	ExerciseID  string        `json:"exercise_id"`
+	ExerciseID  string        `json:"exerciseId"`
 	Sets        []SetLogInput `json:"sets"`
 	RPE         float64       `json:"rpe,omitempty"`
 	FormQuality int           `json:"formQuality,omitempty"`
+	Cycle       int           `json:"cycle,omitempty"`
 }
 
 type SetLogInput struct {
@@ -59,6 +60,7 @@ type WorkoutExerciseDTO struct {
 	Reps        int     `json:"reps"`
 	Rest        int     `json:"rest"`
 	Weight      float64 `json:"weight"`
+	Cycle       int     `json:"cycle"`
 }
 
 type ImportSharedWorkoutRequest struct {

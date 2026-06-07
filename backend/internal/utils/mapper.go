@@ -58,6 +58,7 @@ func MapWorkoutToDTO(w domain.Workout) dto.WorkoutResponse {
 			Reps:        e.Reps,
 			Rest:        e.Rest,
 			Weight:      e.Weight,
+			Cycle:       e.Cycle,
 		})
 	}
 
@@ -93,6 +94,7 @@ func MapToWorkoutLog(userID string, workoutID string, req dto.CompleteWorkoutReq
 			Sets:        sets,
 			RPE:         ex.RPE,
 			FormQuality: ex.FormQuality,
+			Cycle:       ex.Cycle,
 		})
 	}
 
