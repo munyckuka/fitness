@@ -223,12 +223,16 @@ func (h *WorkoutHandler) ListExercises(c *gin.Context) {
 
 	var response []dto.ExerciseDTO
 	for _, ex := range exercises {
+		dl := difficultyLabel(ex.DifficultyLevel)
 		response = append(response, dto.ExerciseDTO{
-			ID:                ex.ID.String(),
-			Name:              ex.Name,
-			MuscleGroup:       ex.MuscleGroup,
-			RequiredEquipment: ex.RequiredEquipment,
-			DifficultyLevel:   difficultyLabel(ex.DifficultyLevel),
+			ID:                     ex.ID.String(),
+			Name:                   ex.Name,
+			MuscleGroup:            ex.MuscleGroup,
+			RequiredEquipment:      ex.RequiredEquipment,
+			DifficultyLevel:        dl,
+			MuscleGroupLabel:       muscleGroupLabel(ex.MuscleGroup),
+			RequiredEquipmentLabel: equipmentLabel(ex.RequiredEquipment),
+			DifficultyLabel:        dl,
 		})
 	}
 
