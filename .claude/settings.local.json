@@ -9,7 +9,17 @@
       "Read(//c/tools/**)",
       "Read(//c/Users/kairb/**)",
       "Bash(/c/Users/kairb/sdk/go1.25.7/bin/go.exe build *)",
-      "Bash(/c/Users/kairb/sdk/go1.25.7/bin/go.exe vet *)"
+      "Bash(/c/Users/kairb/sdk/go1.25.7/bin/go.exe vet *)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\kairb\\\\GolandProjects\\\\fitness\" -Recurse -Directory)",
+      "Bash(Select-Object FullName)",
+      "Bash(Sort-Object FullName)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\kairb\\\\GolandProjects\\\\fitness\\\\backend\" -Recurse -File | Where-Object { $_.Extension -in '.sql', '.go' } | Group-Object Directory | ForEach-Object { Write-Host \"=== $\\($_.Name\\) ===\" ; $_.Group | Select-Object Name })",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\kairb\\\\GolandProjects\\\\fitness\\\\backend\" -Recurse -File | Select-Object FullName | Sort-Object FullName | ForEach-Object { $_.FullName -replace [regex]::Escape\\(\"C:\\\\Users\\\\kairb\\\\GolandProjects\\\\fitness\\\\\"\\), \"\" })",
+      "Bash(psql *)",
+      "Bash(python3 -c \"import psycopg2; print\\('ok'\\)\")",
+      "Bash(python -c \"import psycopg2; print\\('ok'\\)\")",
+      "Bash(pip install *)",
+      "Bash(python3 *)"
     ]
   }
 }

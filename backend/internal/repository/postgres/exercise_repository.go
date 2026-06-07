@@ -16,7 +16,8 @@ func NewExerciseRepository(db *sql.DB) *ExerciseRepository {
 
 func (r *ExerciseRepository) GetAll(ctx context.Context) ([]domain.Exercise, error) {
 	rows, err := r.DB.QueryContext(ctx, `
-		SELECT *
+		SELECT id, name, muscle_group, required_equipment, difficulty_level,
+		       COALESCE(description, ''), COALESCE(photo_path, '')
 		FROM exercises
 	`)
 	if err != nil {
@@ -34,6 +35,8 @@ func (r *ExerciseRepository) GetAll(ctx context.Context) ([]domain.Exercise, err
 			&e.MuscleGroup,
 			&e.RequiredEquipment,
 			&difficultyLevel,
+			&e.Description,
+			&e.PhotoPath,
 		); err != nil {
 			return nil, err
 		}

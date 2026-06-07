@@ -28,9 +28,9 @@ func (r *LogRepository) Save(
 	}
 
 	_, err = tx.ExecContext(ctx, `
-		INSERT INTO workout_logs (id, workout_id, user_id, created_at)
-		VALUES ($1, $2, $3, NOW())
-	`, log.ID, log.WorkoutID, log.UserID)
+		INSERT INTO workout_logs (id, workout_id, user_id, created_at, sleep_hours, sleep_quality, stress_level)
+		VALUES ($1, $2, $3, NOW(), $4, $5, $6)
+	`, log.ID, log.WorkoutID, log.UserID, log.SleepHours, log.SleepQuality, log.StressLevel)
 
 	if err != nil {
 		tx.Rollback()
@@ -42,10 +42,10 @@ func (r *LogRepository) Save(
 		var exerciseLogID int
 
 		err := tx.QueryRowContext(ctx, `
-			INSERT INTO exercise_logs (workout_log_id, exercise_id)
-			VALUES ($1, $2)
+			INSERT INTO exercise_logs (workout_log_id, exercise_id, difficulty, rpe, form_quality, cycle)
+			VALUES ($1, $2, $3, $4, $5, $6)
 			RETURNING id
-		`, log.ID, ex.ExerciseID).Scan(&exerciseLogID)
+		`, log.ID, ex.ExerciseID, ex.Difficulty, ex.RPE, ex.FormQuality, ex.Cycle).Scan(&exerciseLogID)
 
 		if err != nil {
 			tx.Rollback()
@@ -54,9 +54,9 @@ func (r *LogRepository) Save(
 
 		for _, set := range ex.Sets {
 			_, err := tx.ExecContext(ctx, `
-				INSERT INTO exercise_sets (exercise_log_id, reps, weight)
-				VALUES ($1, $2, $3)
-			`, exerciseLogID, set.Reps, set.Weight)
+				INSERT INTO exercise_sets (exercise_log_id, reps, weight, rpe)
+				VALUES ($1, $2, $3, $4)
+			`, exerciseLogID, set.Reps, set.Weight, set.RPE)
 
 			if err != nil {
 				tx.Rollback()
@@ -79,7 +79,7 @@ func (r *LogRepository) GetByUser(
 	}
 
 	rows, err := r.db.QueryContext(ctx, `
-		SELECT id, workout_id, created_at
+		SELECT id, workout_id, created_at, sleep_hours, sleep_quality, stress_level
 		FROM workout_logs
 		WHERE user_id = $1
 		ORDER BY created_at DESC
@@ -96,18 +96,16 @@ func (r *LogRepository) GetByUser(
 		var log domain.WorkoutLog
 		var createdAt time.Time
 
-		err := rows.Scan(&log.ID, &log.WorkoutID, &createdAt)
+		err := rows.Scan(&log.ID, &log.WorkoutID, &createdAt, &log.SleepHours, &log.SleepQuality, &log.StressLevel)
 		if err != nil {
 			return nil, err
 		}
 
 		log.Timestamp = createdAt.Unix()
-
 		log.UserID = parsedUserID
 
-		// exercise_logs
 		exRows, err := r.db.QueryContext(ctx, `
-			SELECT id, exercise_id
+			SELECT id, exercise_id, difficulty, COALESCE(rpe, 0), COALESCE(form_quality, 0), COALESCE(cycle, 0)
 			FROM exercise_logs
 			WHERE workout_log_id = $1
 		`, log.ID)
@@ -120,14 +118,13 @@ func (r *LogRepository) GetByUser(
 			var ex domain.ExerciseLog
 			var exLogID int
 
-			err := exRows.Scan(&exLogID, &ex.ExerciseID)
+			err := exRows.Scan(&exLogID, &ex.ExerciseID, &ex.Difficulty, &ex.RPE, &ex.FormQuality, &ex.Cycle)
 			if err != nil {
 				return nil, err
 			}
 
-			// sets
 			setRows, err := r.db.QueryContext(ctx, `
-				SELECT reps, weight
+				SELECT reps, weight, COALESCE(rpe, 0)
 				FROM exercise_sets
 				WHERE exercise_log_id = $1
 			`, exLogID)
@@ -139,7 +136,7 @@ func (r *LogRepository) GetByUser(
 			for setRows.Next() {
 				var set domain.SetLog
 
-				err := setRows.Scan(&set.Reps, &set.Weight)
+				err := setRows.Scan(&set.Reps, &set.Weight, &set.RPE)
 				if err != nil {
 					return nil, err
 				}
