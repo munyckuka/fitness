@@ -2,8 +2,9 @@ import { useEffect, useState } from "react";
 import { ActivityIndicator, SafeAreaView, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { useRouter } from "expo-router";
 import { MonthCalendar } from "@/components/month-calendar";
-import { getProgress, type ProgressData } from "@/services/fitness-service";
+import { type ProgressData } from "@/services/fitness-service";
 import { getStoredUserId } from "@/services/session-service";
+import { getProgressOfflineFirst } from "@/services/progress-cache";
 import { colors } from "./theme";
 
 function getMonthKey(date: Date) {
@@ -59,33 +60,39 @@ export default function Progress() {
     let isMounted = true;
 
     const loadProgress = async () => {
-      try {
-        const userId = await getStoredUserId();
+      const userId = await getStoredUserId();
 
-        if (!userId) {
-          if (isMounted) {
-            setError("Сначала создайте пользователя и завершите хотя бы одну тренировку.");
-          }
-          return;
+      if (!userId) {
+        if (isMounted) {
+          setError("Сначала создайте пользователя и завершите хотя бы одну тренировку.");
+          setIsLoading(false);
         }
+        return;
+      }
 
-        const loadedProgress = await getProgress(userId);
+      try {
+        // Returns cached data (+ unsynced local workouts) immediately;
+        // calls onFresh when the API responds.
+        const cached = await getProgressOfflineFirst(userId, (fresh) => {
+          if (isMounted) setProgress(fresh);
+        });
 
         if (isMounted) {
-          setProgress(loadedProgress);
+          setProgress(cached);
+          if (cached.workoutDates.length > 0 || cached.weightHistory.length > 0) {
+            setIsLoading(false);
+          }
         }
       } catch (loadError) {
         if (isMounted) {
           setError(loadError instanceof Error ? loadError.message : "Не удалось загрузить прогресс.");
         }
       } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
+        if (isMounted) setIsLoading(false);
       }
     };
 
-    loadProgress();
+    void loadProgress();
 
     return () => {
       isMounted = false;
