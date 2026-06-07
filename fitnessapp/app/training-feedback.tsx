@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { ActivityIndicator, SafeAreaView, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { completeWorkout } from "@/services/fitness-service";
+import { completeWorkoutOfflineFirst } from "@/services/offline-workout";
 import {
   clearPendingWorkoutCompletion,
   clearWorkoutProgress,
@@ -56,7 +56,8 @@ export default function TrainingFeedback() {
 
       const recovery = await getRecoveryMetrics();
 
-      await completeWorkout({
+      // Saves locally first, syncs in background — works offline.
+      await completeWorkoutOfflineFirst({
         userId,
         workoutId,
         difficulty,
@@ -69,7 +70,7 @@ export default function TrainingFeedback() {
       await clearRecoveryMetrics();
       router.replace("/progress");
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : "Не удалось отправить фидбек.");
+      setError(submitError instanceof Error ? submitError.message : "Не удалось завершить тренировку.");
     } finally {
       setIsSubmitting(false);
     }
