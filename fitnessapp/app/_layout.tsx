@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { View } from "react-native";
 import { BottomNav } from "../components/bottom-nav";
 import { HAS_LAUNCHED_KEY, IS_REGISTERED_KEY } from "@/services/storage";
+import { getDb } from "@/services/database";
 import { colors } from "./theme";
 
 export default function RootLayout() {
@@ -14,16 +15,24 @@ export default function RootLayout() {
   useEffect(() => {
     let isMounted = true;
 
-    const checkFirstLaunch = async () => {
+    const bootstrap = async () => {
       try {
-        const hasLaunched = await AsyncStorage.getItem(HAS_LAUNCHED_KEY);
-        const isRegistered = await AsyncStorage.getItem(IS_REGISTERED_KEY);
-        const isFirstLaunch = hasLaunched !== "true";
-        const registered = isRegistered === "true";
+        // Run DB init and first-launch check in parallel.
+        // DB failure is non-fatal — the app still works via the API.
+        const [, launchResult] = await Promise.allSettled([
+          getDb(),
+          AsyncStorage.multiGet([HAS_LAUNCHED_KEY, IS_REGISTERED_KEY]),
+        ]);
 
-        if (isFirstLaunch && !registered) {
-          await AsyncStorage.setItem(HAS_LAUNCHED_KEY, "true");
-          router.replace("/welcome");
+        if (launchResult.status === "fulfilled") {
+          const [[, hasLaunched], [, isRegistered]] = launchResult.value;
+          const isFirstLaunch = hasLaunched !== "true";
+          const registered = isRegistered === "true";
+
+          if (isFirstLaunch && !registered) {
+            await AsyncStorage.setItem(HAS_LAUNCHED_KEY, "true");
+            router.replace("/welcome");
+          }
         }
       } finally {
         if (isMounted) {
@@ -32,7 +41,7 @@ export default function RootLayout() {
       }
     };
 
-    checkFirstLaunch();
+    void bootstrap();
 
     return () => {
       isMounted = false;
