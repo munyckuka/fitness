@@ -10,8 +10,9 @@ import {
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { getUserWorkouts, type WorkoutSummary } from "@/services/fitness-service";
+import { type WorkoutSummary } from "@/services/fitness-service";
 import { getStoredUserId, setStoredWorkoutId } from "@/services/session-service";
+import { getWorkoutsOfflineFirst } from "@/services/workout-cache";
 import { colors } from "./theme";
 
 const LIBRARY_CATEGORIES = [
@@ -180,33 +181,37 @@ export default function Workouts() {
     let isMounted = true;
 
     const loadWorkouts = async () => {
-      try {
-        const userId = await getStoredUserId();
+      const userId = await getStoredUserId();
 
-        if (!userId) {
-          if (isMounted) {
-            setError("Сначала создайте профиль и план тренировки.");
-          }
-          return;
+      if (!userId) {
+        if (isMounted) {
+          setError("Сначала создайте профиль и план тренировки.");
+          setIsLoading(false);
         }
+        return;
+      }
 
-        const loadedWorkouts = await getUserWorkouts(userId);
+      try {
+        // Returns cached data immediately; calls onFresh when API responds.
+        const cached = await getWorkoutsOfflineFirst(userId, (fresh) => {
+          if (isMounted) setWorkouts(fresh);
+        });
 
         if (isMounted) {
-          setWorkouts(loadedWorkouts);
+          setWorkouts(cached);
+          // Only keep spinner if cache is empty (first launch or cleared).
+          if (cached.length > 0) setIsLoading(false);
         }
       } catch (loadError) {
         if (isMounted) {
           setError(loadError instanceof Error ? loadError.message : "Не удалось загрузить тренировки.");
         }
       } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
+        if (isMounted) setIsLoading(false);
       }
     };
 
-    loadWorkouts();
+    void loadWorkouts();
 
     return () => {
       isMounted = false;
