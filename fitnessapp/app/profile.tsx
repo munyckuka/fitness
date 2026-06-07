@@ -2,9 +2,11 @@ import { useEffect, useState } from "react";
 import { MaterialIcons } from "@expo/vector-icons";
 import { ActivityIndicator, Alert, Image, SafeAreaView, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { useRouter } from "expo-router";
-import { getUser, getUserWorkouts, type UserProfile, type WorkoutSummary } from "@/services/fitness-service";
+import { type UserProfile, type WorkoutSummary } from "@/services/fitness-service";
 import { getChatDialogs, type ChatDialog } from "@/services/chat-service";
 import { getStoredUserId, setStoredWorkoutId, clearStoredUserId } from "@/services/session-service";
+import { getProfileOfflineFirst } from "@/services/profile-cache";
+import { getWorkoutsOfflineFirst } from "@/services/workout-cache";
 import { colors } from "./theme";
 
 const AVATARS = [
@@ -36,32 +38,36 @@ export default function Profile() {
     let isMounted = true;
 
     const loadProfile = async () => {
+      const userId = await getStoredUserId();
+
+      if (!userId) {
+        if (isMounted) {
+          setError("Профиль еще не создан.");
+          setIsLoading(false);
+        }
+        return;
+      }
+
       try {
-        const userId = await getStoredUserId();
+        // Both load from cache immediately; API updates arrive via callbacks.
+        const [cachedUser, cachedWorkouts] = await Promise.all([
+          getProfileOfflineFirst(userId, (fresh) => { if (isMounted) setUser(fresh); }),
+          getWorkoutsOfflineFirst(userId, (fresh) => { if (isMounted) setWorkouts(fresh); }),
+        ]);
 
-        if (!userId) {
-          if (isMounted) {
-            setError("Профиль еще не создан.");
-          }
-          return;
-        }
+        if (!isMounted) return;
 
-        const [loadedUser, loadedWorkouts] = await Promise.all([getUser(userId), getUserWorkouts(userId)]);
+        if (cachedUser) setUser(cachedUser);
+        if (cachedWorkouts.length > 0) setWorkouts(cachedWorkouts);
 
-        if (!isMounted) {
-          return;
-        }
-
-        setUser(loadedUser);
-        setWorkouts(loadedWorkouts);
+        // Keep spinner only while both caches are empty (first launch).
+        if (cachedUser || cachedWorkouts.length > 0) setIsLoading(false);
       } catch (loadError) {
         if (isMounted) {
           setError(loadError instanceof Error ? loadError.message : "Не удалось загрузить профиль.");
         }
       } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
+        if (isMounted) setIsLoading(false);
       }
 
       try {

@@ -3,8 +3,9 @@ import { useEffect, useState } from "react";
 import { useRouter } from "expo-router";
 import { ActivityIndicator, SafeAreaView, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { getStoredUserId } from "@/services/session-service";
-import { getUser, updateUser, type UpdateUserInput } from "@/services/fitness-service";
+import { type UpdateUserInput } from "@/services/fitness-service";
 import { mapEquipmentToBackend } from "@/services/auth-service";
+import { getProfileOfflineFirst, updateProfileOfflineFirst } from "@/services/profile-cache";
 import { colors } from "./theme";
 
 const GOAL_OPTIONS = ["Сила", "Рост мышц", "Выносливость", "Похудение"];
@@ -114,33 +115,32 @@ export default function EditProfile() {
     const loadProfile = async () => {
       try {
         const storedUserId = await getStoredUserId();
-        if (!storedUserId) {
-          throw new Error("Пользователь не найден.");
-        }
-
-        const user = await getUser(storedUserId);
-        if (!isMounted) {
-          return;
-        }
+        if (!storedUserId) throw new Error("Пользователь не найден.");
 
         setUserId(storedUserId);
-        setForm({
-          goal: user.goal,
-          experience: user.experience,
-          equipment: user.equipmentList[0] ?? user.equipment,
-          frequency: user.frequency ? String(user.frequency) : "",
-          age: user.age ? String(user.age) : "",
-          height: user.height ? String(user.height) : "",
-          weight: user.weight ? String(user.weight) : "",
-        });
+
+        const applyUser = (user: NonNullable<Awaited<ReturnType<typeof getProfileOfflineFirst>>>) => {
+          if (!isMounted) return;
+          setForm({
+            goal: user.goal,
+            experience: user.experience,
+            equipment: user.equipmentList[0] ?? user.equipment,
+            frequency: user.frequency ? String(user.frequency) : "",
+            age: user.age ? String(user.age) : "",
+            height: user.height ? String(user.height) : "",
+            weight: user.weight ? String(user.weight) : "",
+          });
+        };
+
+        // Load from cache immediately; fresh data from API fills the form when ready.
+        const cached = await getProfileOfflineFirst(storedUserId, (fresh) => applyUser(fresh));
+        if (cached) applyUser(cached);
       } catch (loadError) {
         if (isMounted) {
           setError(loadError instanceof Error ? loadError.message : "Не удалось загрузить данные профиля.");
         }
       } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
+        if (isMounted) setIsLoading(false);
       }
     };
 
@@ -180,7 +180,8 @@ export default function EditProfile() {
         weight: toNumber(form.weight),
       };
 
-      await updateUser(userId, payload);
+      // Saves locally first, syncs in background — works offline.
+      await updateProfileOfflineFirst(userId, payload);
       router.replace("/profile");
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : "Не удалось сохранить изменения.");
