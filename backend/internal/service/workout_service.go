@@ -315,7 +315,11 @@ func (s *workoutService) ReplaceExercise(
 	newExerciseID string,
 ) error {
 
-	workout, err := s.WorkoutRepo.GetByID(ctx, uuid.MustParse(workoutID))
+	parsedWorkoutID, err := uuid.Parse(workoutID)
+	if err != nil {
+		return errors.New("invalid workoutId")
+	}
+	workout, err := s.WorkoutRepo.GetByID(ctx, parsedWorkoutID)
 	if err != nil {
 		return err
 	}
@@ -388,13 +392,12 @@ func (s *workoutService) GenerateWeekWorkouts(
 	}
 
 	var generated []domain.Workout
-	var virtualLogs []domain.WorkoutLog
 
 	for _, dayIndex := range prefs.DaysOfWeek {
 		date := startDate.AddDate(0, 0, dayIndex)
 		dateStr := date.Format("2006-01-02")
 		if _, exists := existingMap[dateStr]; exists {
-			continue // Skip if already exists
+			continue
 		}
 
 		opts := GenerateWorkoutOptions{
@@ -409,15 +412,6 @@ func (s *workoutService) GenerateWeekWorkouts(
 		}
 
 		generated = append(generated, result.Workout)
-
-		virtualLog := domain.WorkoutLog{
-			ID:        uuid.New(),
-			UserID:    user.ID,
-			WorkoutID: result.Workout.ID,
-			Exercises: []domain.ExerciseLog{},
-			Timestamp: date.Unix(),
-		}
-		virtualLogs = append(virtualLogs, virtualLog)
 	}
 
 	return generated, nil
