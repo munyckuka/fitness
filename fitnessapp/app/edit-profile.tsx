@@ -4,6 +4,7 @@ import { useRouter } from "expo-router";
 import { ActivityIndicator, SafeAreaView, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { getStoredUserId } from "@/services/session-service";
 import { getUser, updateUser, type UpdateUserInput } from "@/services/fitness-service";
+import { mapEquipmentToBackend } from "@/services/auth-service";
 import { colors } from "./theme";
 
 const GOAL_OPTIONS = ["Сила", "Рост мышц", "Выносливость", "Похудение"];
@@ -173,7 +174,7 @@ export default function EditProfile() {
         goal: mapGoalToBackend(form.goal),
         experience: mapLevelToBackend(form.experience),
         frequency: Number(form.frequency) || 3,
-        equipment: [mapEquipmentToBackend(form.equipment)],
+        equipment: mapEquipmentToBackend(form.equipment),
         age: toNumber(form.age),
         height: toNumber(form.height),
         weight: toNumber(form.weight),
@@ -312,17 +313,3 @@ function mapLevelToBackend(level: string) {
   }
 }
 
-function mapEquipmentToBackend(equipment: string) {
-  switch (equipment) {
-    case "Домашний":
-      return "";
-    case "Гантели":
-      return "dumbbell";
-    case "Спортивная площадка":
-      return "pullup_bar";
-    case "Тренажерный зал":
-      return "barbell";
-    default:
-      return "";
-  }
-}

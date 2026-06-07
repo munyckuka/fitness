@@ -183,28 +183,30 @@ export function mapLevelToBackend(level?: string) {
   }
 }
 
-export function mapEquipmentToBackend(equipment?: string) {
+// Возвращает все типы инвентаря, доступные в данной "среде тренировки".
+// Используется при сохранении профиля и скоринге упражнений на беке.
+export function mapEquipmentToBackend(equipment?: string): string[] {
   switch (equipment) {
     case "Домашний":
-      return "";
+      return ["bodyweight"];
     case "Гантели":
-      return "dumbbell";
+      return ["dumbbell", "bodyweight"];
     case "Спортивная площадка":
-      return "pullup_bar";
+      return ["bodyweight", "pullup_bar"];
     case "Тренажерный зал":
-      return "barbell";
+      return ["barbell", "dumbbell", "machine", "cable", "kettlebell", "bodyweight"];
     case "Кеттлбелл":
-      return "kettlebell";
+      return ["kettlebell", "bodyweight"];
     case "Кроссовер/Кабель":
-      return "cable";
+      return ["cable", "bodyweight"];
     case "Резинка":
-      return "band";
+      return ["band", "bodyweight"];
     case "Мяч":
-      return "medicine ball";
+      return ["medicine ball", "bodyweight"];
     case "Нет":
-      return "none";
+      return ["bodyweight", "none"];
     default:
-      return "";
+      return ["bodyweight"];
   }
 }
 
@@ -213,7 +215,7 @@ export function buildRegisterPayloadFromProfile(user: UserProfile) {
     goal: mapGoalToBackend(user.goal),
     experience: mapLevelToBackend(user.experience),
     frequency: user.frequency ?? 3,
-    equipment: [mapEquipmentToBackend(user.equipmentList[0] ?? user.equipment)],
+    equipment: mapEquipmentToBackend(user.equipmentList[0] ?? user.equipment),
     age: user.age,
     height: user.height,
     weight: user.weight,

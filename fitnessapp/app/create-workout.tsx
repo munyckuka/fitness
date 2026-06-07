@@ -3,7 +3,7 @@ import { ActivityIndicator, SafeAreaView, ScrollView, Text, TextInput, Touchable
 import { useLocalSearchParams, useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { generateWorkout, getUser, updateUser, type UserProfile } from "@/services/fitness-service";
-import { mapEquipmentToBackend as mapEquipmentToBackendAuth, mapGoalToBackend as mapGoalToBackendAuth, mapLevelToBackend as mapLevelToBackendAuth, registerWithProfile } from "@/services/auth-service";
+import { mapEquipmentToBackend, mapGoalToBackend as mapGoalToBackendAuth, mapLevelToBackend as mapLevelToBackendAuth, registerWithProfile } from "@/services/auth-service";
 import { CURRENT_WORKOUT_ID_KEY, IS_REGISTERED_KEY, USER_ID_KEY } from "@/services/storage";
 import { colors } from "./theme";
 
@@ -163,7 +163,24 @@ function Step2Experience({ data, onUpdate }: { data: WorkoutData; onUpdate: (dat
   );
 }
 
+const EQUIPMENT_SUBTITLES: Record<string, string> = {
+  "Домашний": "Собственный вес",
+  "Гантели": "Гантели + б/вес",
+  "Спортивная площадка": "Турник, брусья",
+  "Тренажерный зал": "Штанга, тренажёры",
+  "Кеттлбелл": "Гиря + б/вес",
+  "Кроссовер/Кабель": "Кабельный блок",
+  "Резинка": "Резиновая лента",
+  "Мяч": "Медицинский мяч",
+  "Нет": "Совсем без снаряжения",
+};
+
 function Step3Equipment({ data, onUpdate }: { data: WorkoutData; onUpdate: (data: WorkoutData) => void }) {
+  const pairs = [];
+  for (let i = 0; i < EQUIPMENT_OPTIONS.length; i += 2) {
+    pairs.push(EQUIPMENT_OPTIONS.slice(i, i + 2));
+  }
+
   return (
     <View style={{ flex: 1 }}>
       <Text style={{ color: colors.textPrimary, fontSize: 28, fontWeight: "600", marginBottom: 12 }}>
@@ -174,43 +191,21 @@ function Step3Equipment({ data, onUpdate }: { data: WorkoutData; onUpdate: (data
       </Text>
 
       <View style={{ gap: 12, marginBottom: 32 }}>
-        <View style={{ flexDirection: "row", gap: 12 }}>
-          <View style={{ flex: 1 }}>
-            <StepCard
-              label="Домашний"
-              subtitle="Без снаряжения"
-              selected={data.equipment === "Домашний"}
-              onPress={() => onUpdate({ ...data, equipment: "Домашний" })}
-            />
+        {pairs.map((pair, rowIdx) => (
+          <View key={rowIdx} style={{ flexDirection: "row", gap: 12 }}>
+            {pair.map((option) => (
+              <View key={option} style={{ flex: 1 }}>
+                <StepCard
+                  label={option}
+                  subtitle={EQUIPMENT_SUBTITLES[option] ?? ""}
+                  selected={data.equipment === option}
+                  onPress={() => onUpdate({ ...data, equipment: option })}
+                />
+              </View>
+            ))}
+            {pair.length === 1 && <View style={{ flex: 1 }} />}
           </View>
-          <View style={{ flex: 1 }}>
-            <StepCard
-              label="Гантели"
-              subtitle="Только гантели"
-              selected={data.equipment === "Гантели"}
-              onPress={() => onUpdate({ ...data, equipment: "Гантели" })}
-            />
-          </View>
-        </View>
-
-        <View style={{ flexDirection: "row", gap: 12 }}>
-          <View style={{ flex: 1 }}>
-            <StepCard
-              label="Спортивная площадка"
-              subtitle="Турник, брусья"
-              selected={data.equipment === "Спортивная площадка"}
-              onPress={() => onUpdate({ ...data, equipment: "Спортивная площадка" })}
-            />
-          </View>
-          <View style={{ flex: 1 }}>
-            <StepCard
-              label="Тренажерный зал"
-              subtitle="Оборудование зала"
-              selected={data.equipment === "Тренажерный зал"}
-              onPress={() => onUpdate({ ...data, equipment: "Тренажерный зал" })}
-            />
-          </View>
-        </View>
+        ))}
       </View>
     </View>
   );
@@ -488,7 +483,7 @@ export default function CreateWorkout() {
         goal: mapGoalToBackendAuth(data.goal),
         experience: mapLevelToBackendAuth(data.experience),
         frequency: toNumber(data.frequency) ?? 3,
-        equipment: [mapEquipmentToBackendAuth(data.equipment)],
+        equipment: mapEquipmentToBackend(data.equipment),
         age: toNumber(data.age),
         height: toNumber(data.height),
         weight: toNumber(data.weight),
@@ -620,7 +615,7 @@ function buildProfilePayload(data: WorkoutData) {
     goal: mapGoalToBackend(data.goal),
     experience: mapLevelToBackend(data.experience),
     frequency: toNumber(data.frequency) ?? 3,
-    equipment: [mapEquipmentToBackend(data.equipment)],
+    equipment: mapEquipmentToBackend(data.equipment),
     age: toNumber(data.age),
     height: toNumber(data.height),
     weight: toNumber(data.weight),
@@ -632,7 +627,7 @@ function buildRegisteredProfilePayload(data: WorkoutData, user: UserProfile) {
     goal: mapGoalToBackend(data.goal),
     experience: mapLevelToBackend(user.experience),
     frequency: toNumber(data.frequency) ?? user.frequency ?? 3,
-    equipment: [mapEquipmentToBackend(data.equipment)],
+    equipment: mapEquipmentToBackend(data.equipment),
     age: user.age,
     height: user.height,
     weight: user.weight,
@@ -674,29 +669,6 @@ function mapLevelToBackend(level?: string) {
       return "advanced";
     default:
       return "beginner";
-  }
-}
-
-function mapEquipmentToBackend(equipment?: string) {
-  switch (equipment) {
-    case "Домашний":
-    case "bodyweight":
-    case "":
-      return "";
-    case "Гантели":
-    case "dumbbells":
-    case "dumbbell":
-      return "dumbbell";
-    case "Спортивная площадка":
-    case "outdoor":
-    case "pullup_bar":
-      return "pullup_bar";
-    case "Тренажерный зал":
-    case "gym":
-    case "barbell":
-      return "barbell";
-    default:
-      return "";
   }
 }
 
