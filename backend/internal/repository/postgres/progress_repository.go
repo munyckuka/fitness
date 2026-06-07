@@ -5,7 +5,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"time"
 
 	"github.com/google/uuid"
 )
@@ -34,9 +33,6 @@ func (r *ProgressRepository) GetByUser(ctx context.Context, userID string) (doma
 		if errors.Is(err, sql.ErrNoRows) {
 			progress.UserID = parsedID
 			progress.Modifier = 1
-			progress.WorkoutDates = []string{}
-			progress.WeightHistory = defaultWeightHistory()
-			progress.LastWorkout = time.Time{}.Unix()
 			return progress, nil
 		}
 		return progress, err
@@ -97,11 +93,3 @@ func (r *ProgressRepository) Update(ctx context.Context, p domain.Progress) erro
 	return err
 }
 
-func defaultWeightHistory() []domain.WeightHistoryPoint {
-	now := time.Now()
-	return []domain.WeightHistoryPoint{
-		{Label: now.AddDate(0, -2, 0).Format("Jan"), Value: 0},
-		{Label: now.AddDate(0, -1, 0).Format("Jan"), Value: 0},
-		{Label: now.Format("Jan"), Value: 0},
-	}
-}
