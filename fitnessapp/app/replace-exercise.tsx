@@ -3,7 +3,9 @@ import { ActivityIndicator, SafeAreaView, ScrollView, Text, TextInput, Touchable
 import { colors } from "./theme";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { getStoredUserId } from "@/services/session-service";
-import { replaceExercise, getUserWorkouts, searchExercises, ExerciseSearchResult } from "@/services/fitness-service";
+import { replaceExercise, type ExerciseSearchResult } from "@/services/fitness-service";
+import { getCachedWorkouts } from "@/services/workout-cache";
+import { searchExercisesOfflineFirst } from "@/services/exercise-cache";
 
 export default function ReplaceExercisePage() {
   const router = useRouter();
@@ -28,14 +30,14 @@ export default function ReplaceExercisePage() {
         if (!userId) return;
         if (!workoutId || !exerciseId) return;
 
-        // try to infer muscle group from existing workout and prefill suggestions
-        const workouts = await getUserWorkouts(userId).catch(() => [] as any[]);
+        // Infer muscle group from cached workout to pre-fill suggestions — no API call needed.
+        const workouts = await getCachedWorkouts(userId);
         const workout = workouts.find((w) => String(w.id) === String(workoutId));
         if (!workout) return;
         const ex = (workout.exercises ?? []).find((e: any) => String(e.id) === String(exerciseId));
         const muscle = ex ? (ex.muscle ?? "") : "";
         if (muscle) {
-          const list = await searchExercises(undefined, muscle, 30).catch(() => []);
+          const list = await searchExercisesOfflineFirst(undefined, muscle, 30);
           setSuggestions(list);
         }
       } catch {
@@ -73,7 +75,7 @@ export default function ReplaceExercisePage() {
     setIsLoading(true);
     setMessage(null);
     try {
-      const list = await searchExercises(query, undefined, 50);
+      const list = await searchExercisesOfflineFirst(query, undefined, 50);
       setSuggestions(list);
       if (list.length === 0) setMessage("Ничего не найдено");
     } catch (err) {
