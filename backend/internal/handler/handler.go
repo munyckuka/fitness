@@ -33,6 +33,7 @@ func SetupRoutes(r *gin.Engine, authMiddleware gin.HandlerFunc, authHandler *Aut
 			workouts.POST("/complete", authMiddleware, workoutHandler.CompleteWorkout)
 			workouts.GET("/user/:id", workoutHandler.GetUserWorkouts)
 			workouts.PATCH("/:workoutId/exercises/:exerciseId", authMiddleware, workoutHandler.ReplaceExercise)
+			workouts.DELETE("/:workoutId", authMiddleware, workoutHandler.DeleteWorkout)
 		}
 
 		exercises := api.Group("/exercises")

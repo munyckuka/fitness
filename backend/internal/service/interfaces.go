@@ -16,6 +16,7 @@ type WorkoutService interface {
 	// ListExercises returns exercises optionally filtered by name query and muscle group.
 	ListExercises(ctx context.Context, query string, muscle string, limit int) ([]domain.Exercise, error)
 	GenerateWeekWorkouts(ctx context.Context, userID string, startDate time.Time) ([]domain.Workout, error)
+	DeleteWorkout(ctx context.Context, userID string, workoutID string) error
 }
 
 type GenerateWorkoutOptions struct {

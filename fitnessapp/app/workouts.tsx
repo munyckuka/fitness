@@ -1,5 +1,6 @@
 import {
   ActivityIndicator,
+  Alert,
   Image,
   SafeAreaView,
   ScrollView,
@@ -10,7 +11,7 @@ import {
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { type WorkoutSummary } from "@/services/fitness-service";
+import { deleteWorkout, type WorkoutSummary } from "@/services/fitness-service";
 import { getStoredUserId, setStoredWorkoutId } from "@/services/session-service";
 import { getWorkoutsOfflineFirst } from "@/services/workout-cache";
 import { colors } from "./theme";
@@ -225,6 +226,30 @@ export default function Workouts() {
     router.push(`/training?workoutId=${workoutId}`);
   };
 
+  const handleDeleteWorkout = (workoutId: string) => {
+    Alert.alert(
+      "Удалить тренировку?",
+      "Это действие нельзя отменить.",
+      [
+        { text: "Отмена", style: "cancel" },
+        {
+          text: "Удалить",
+          style: "destructive",
+          onPress: async () => {
+            const userId = await getStoredUserId();
+            if (!userId) return;
+            try {
+              await deleteWorkout(userId, workoutId);
+              setWorkouts((prev) => prev.filter((w) => w.id !== workoutId));
+            } catch {
+              Alert.alert("Ошибка", "Не удалось удалить тренировку.");
+            }
+          },
+        },
+      ],
+    );
+  };
+
   const handleOpenExercise = (exerciseName: string, categoryTitle: string, imageUri: string) => {
     router.push({
       pathname: "/workout-exercise",
@@ -302,17 +327,34 @@ export default function Workouts() {
                 </Text>
               </View>
 
-              <View
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: 18,
-                  backgroundColor: colors.accent,
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <MaterialIcons name="play-arrow" size={22} color="#FFFFFF" />
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                <TouchableOpacity
+                  onPress={(e) => { e.stopPropagation(); handleDeleteWorkout(item.id); }}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 18,
+                    backgroundColor: "rgba(255,90,90,0.15)",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <MaterialIcons name="delete-outline" size={20} color="#FF6B6B" />
+                </TouchableOpacity>
+
+                <View
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 18,
+                    backgroundColor: colors.accent,
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <MaterialIcons name="play-arrow" size={22} color="#FFFFFF" />
+                </View>
               </View>
             </TouchableOpacity>
           ))}

@@ -49,6 +49,7 @@ type WorkoutRepository interface {
 	Update(ctx context.Context, w domain.Workout) error
 	UpdateStatus(ctx context.Context, id string, status domain.WorkoutStatus) error
 	ReplaceExercise(ctx context.Context, workoutID string, oldExerciseID string, newExerciseID string) error
+	Delete(ctx context.Context, workoutID string, userID string) error
 }
 
 type ExerciseRepository interface {

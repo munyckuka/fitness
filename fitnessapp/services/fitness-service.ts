@@ -277,6 +277,14 @@ export async function generateWeekWorkouts(userId: string, startDate: string) {
   return collection.map((item) => normalizeWorkout(item, user));
 }
 
+export async function deleteWorkout(userId: string, workoutId: string): Promise<void> {
+  await requestWithAuth(
+    `/workouts/${workoutId}`,
+    { method: "DELETE" },
+    userId,
+  );
+}
+
 export async function replaceExercise(userId: string, workoutId: string, oldExerciseId: string, newExerciseId: string) {
   await requestWithAuth(
     `/workouts/${workoutId}/exercises/${oldExerciseId}`,

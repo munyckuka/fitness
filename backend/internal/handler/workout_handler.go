@@ -3,6 +3,8 @@ package handler
 import (
 	"backend/internal/middleware"
 	"backend/internal/utils"
+	"database/sql"
+	"errors"
 	"net/http"
 	"strconv"
 	"time"
@@ -312,6 +314,38 @@ func muscleGroupLabel(m string) string {
 	default:
 		return "Основная группа"
 	}
+}
+
+func (h *WorkoutHandler) DeleteWorkout(c *gin.Context) {
+	rawUserID, exists := c.Get(middleware.ContextUserIDKey)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	userID, ok := rawUserID.(string)
+	if !ok || userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	workoutID := c.Param("workoutId")
+	if workoutID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "workoutId required"})
+		return
+	}
+
+	err := h.service.DeleteWorkout(c.Request.Context(), userID, workoutID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "workout not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "deleted"})
 }
 
 func (h *WorkoutHandler) GenerateWeekWorkouts(c *gin.Context) {

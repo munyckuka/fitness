@@ -356,6 +356,10 @@ func (s *workoutService) ReplaceExercise(
 	return s.WorkoutRepo.ReplaceExercise(ctx, workoutID, oldExerciseID, newExerciseID)
 }
 
+func (s *workoutService) DeleteWorkout(ctx context.Context, userID string, workoutID string) error {
+	return s.WorkoutRepo.Delete(ctx, workoutID, userID)
+}
+
 func (s *workoutService) GenerateWeekWorkouts(
 	ctx context.Context,
 	userID string,

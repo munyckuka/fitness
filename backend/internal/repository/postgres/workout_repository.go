@@ -120,6 +120,36 @@ func (r *WorkoutRepository) UpdateStatus(
 	return err
 }
 
+func (r *WorkoutRepository) Delete(ctx context.Context, workoutID string, userID string) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+
+	if _, err = tx.ExecContext(ctx, `DELETE FROM workout_exercises WHERE workout_id = $1`, workoutID); err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	result, err := tx.ExecContext(ctx, `DELETE FROM workouts WHERE id = $1 AND user_id = $2`, workoutID, userID)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+	if rows == 0 {
+		tx.Rollback()
+		return sql.ErrNoRows
+	}
+
+	return tx.Commit()
+}
+
 func (r *WorkoutRepository) ReplaceExercise(
 	ctx context.Context,
 	workoutID string,
