@@ -94,6 +94,24 @@ func (s *workoutService) GenerateWorkout(
 		}
 	}
 
+	// Exclude exercises already used in an earlier session this week so that
+	// repeated split types (upper×2, lower×2, fullbody×2) have different exercises.
+	if len(opts.ExcludeIDs) > 0 {
+		excludeSet := make(map[uuid.UUID]struct{}, len(opts.ExcludeIDs))
+		for _, id := range opts.ExcludeIDs {
+			excludeSet[id] = struct{}{}
+		}
+		var filtered []domain.Exercise
+		for _, ex := range pool {
+			if _, skip := excludeSet[ex.ID]; !skip {
+				filtered = append(filtered, ex)
+			}
+		}
+		if len(filtered) > 0 {
+			pool = filtered
+		}
+	}
+
 	scored := utils.ScoreExercises(pool, user)
 	selected := utils.SelectTopExercises(
 		scored,
@@ -407,20 +425,31 @@ func (s *workoutService) GenerateWeekWorkouts(
 	}
 
 	var response []domain.Workout
+	// Track exercise IDs already used per split type so repeated sessions
+	// (upper×2, lower×2, fullbody×2) receive a different exercise set.
+	usedByPart := make(map[string][]uuid.UUID)
 
 	for _, dayOffset := range daysOfWeek {
 		d := dayOffset
 		dt := startDate.AddDate(0, 0, d)
 
+		rotationIndex := utils.ResolveRotationIndex(d, daysOfWeek)
+		splitPart := utils.ResolveSplitPart(split, rotationIndex)
+
 		opts := GenerateWorkoutOptions{
 			DayIndex:    &d,
 			Preferences: prefs,
 			PlannedFor:  &dt,
+			ExcludeIDs:  usedByPart[splitPart],
 		}
 
 		result, err := s.GenerateWorkout(ctx, userID, opts)
 		if err != nil {
 			continue
+		}
+
+		for _, ex := range result.Workout.Exercises {
+			usedByPart[splitPart] = append(usedByPart[splitPart], ex.ExerciseID)
 		}
 
 		response = append(response, result.Workout)

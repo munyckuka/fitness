@@ -82,12 +82,12 @@ func NormalizeDaysOfWeek(days []int) []int {
 }
 
 // AutoSplitFromFrequency returns the optimal split type for a given weekly
-// training frequency: 2→upper/lower, 3→PPL, 4+→upper/lower.
+// training frequency: 1-2→fullbody, 3→PPL, 4+→upper/lower.
 func AutoSplitFromFrequency(freq int) domain.SplitType {
 	switch {
 	case freq == 3:
 		return domain.SplitPPL
-	case freq >= 2:
+	case freq >= 4:
 		return domain.SplitUpperLower
 	default:
 		return domain.SplitFullBody

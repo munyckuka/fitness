@@ -5,6 +5,8 @@ import (
 	"backend/internal/dto"
 	"context"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type WorkoutService interface {
@@ -26,6 +28,9 @@ type GenerateWorkoutOptions struct {
 	SleepHours    int // 0-24, optional
 	SleepQuality  int // 1-10, optional
 	StressLevel   int // 1-10, optional
+	// ExcludeIDs lists exercise IDs already used in an earlier session this week
+	// so repeated split types (upper×2, lower×2, fullbody×2) use different exercises.
+	ExcludeIDs []uuid.UUID
 }
 
 const WarningOvertraining = "overtraining_detected"
