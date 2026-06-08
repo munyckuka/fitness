@@ -2,7 +2,9 @@ package handler
 
 import (
 	"backend/internal/middleware"
+	"backend/internal/repository"
 	"backend/internal/utils"
+	"errors"
 	"net/http"
 
 	"backend/internal/dto"
@@ -59,7 +61,11 @@ func (h *UserHandler) GetUser(c *gin.Context) {
 
 	user, err := h.service.GetByID(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		if errors.Is(err, repository.ErrUserNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
 		return
 	}
 
@@ -81,7 +87,11 @@ func (h *UserHandler) GetMe(c *gin.Context) {
 
 	user, err := h.service.GetByID(c.Request.Context(), userID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		if errors.Is(err, repository.ErrUserNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
 		return
 	}
 

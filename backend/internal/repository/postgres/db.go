@@ -12,8 +12,10 @@ func NewDB(connStr string) (*sql.DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	// Simple protocol avoids prepared statements entirely, which is required
-	// when running behind PgBouncer in transaction mode (e.g. Neon pooler).
-	config.DefaultQueryExecMode = pgx.QueryExecModeSimpleProtocol
+	// QueryExecModeExec uses the extended protocol without caching prepared
+	// statements (Parse→Bind→Execute→Sync, no Describe or intermediate Sync).
+	// This keeps server-side parameterized queries (SQL-injection safe) while
+	// being fully compatible with PgBouncer transaction mode (Neon pooler).
+	config.DefaultQueryExecMode = pgx.QueryExecModeExec
 	return stdlib.OpenDB(*config), nil
 }

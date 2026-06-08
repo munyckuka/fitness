@@ -10,6 +10,7 @@ import {
   type WorkoutSummary,
   type WorkoutExercise,
 } from "@/services/fitness-service";
+import { getCachedWorkouts } from "@/services/workout-cache";
 import {
   clearPendingWorkoutCompletion,
   getStoredUserId,
@@ -50,6 +51,23 @@ export default function TrainingExercise() {
   useEffect(() => {
     let isMounted = true;
 
+    const applyWorkout = async (selectedWorkout: WorkoutSummary | null) => {
+      if (!selectedWorkout || !isMounted) return;
+      await setStoredWorkoutId(selectedWorkout.id);
+      const storedProgress = await getWorkoutProgress(selectedWorkout.id);
+      const progressByExercise = selectedWorkout.exercises.reduce<Record<string, boolean[]>>((acc, exercise) => {
+        const existing = storedProgress?.[exercise.id] ?? [];
+        acc[exercise.id] = Array.from({ length: exercise.sets }, (_, index) => Boolean(existing[index]));
+        return acc;
+      }, {});
+      await setWorkoutProgress(selectedWorkout.id, progressByExercise);
+      await clearPendingWorkoutCompletion();
+      if (isMounted) {
+        setWorkout(selectedWorkout);
+        setCompletedSetsByExercise(progressByExercise);
+      }
+    };
+
     const loadWorkout = async () => {
       try {
         const userId = await getStoredUserId();
@@ -60,24 +78,23 @@ export default function TrainingExercise() {
           return;
         }
 
-        const workouts = await getUserWorkouts(userId);
-        const selectedWorkout = workouts.find((item) => item.id === workoutId) ?? workouts[0] ?? null;
-
-        if (selectedWorkout) {
-          await setStoredWorkoutId(selectedWorkout.id);
-          const storedProgress = await getWorkoutProgress(selectedWorkout.id);
-          const progressByExercise = selectedWorkout.exercises.reduce<Record<string, boolean[]>>((acc, exercise) => {
-            const existing = storedProgress?.[exercise.id] ?? [];
-            acc[exercise.id] = Array.from({ length: exercise.sets }, (_, index) => Boolean(existing[index]));
-            return acc;
-          }, {});
-
-          await setWorkoutProgress(selectedWorkout.id, progressByExercise);
-          await clearPendingWorkoutCompletion();
-          if (isMounted) setCompletedSetsByExercise(progressByExercise);
+        // Show cached data immediately — no spinner flash between exercises.
+        const cached = await getCachedWorkouts(userId);
+        const cachedWorkout = cached.find((w) => w.id === workoutId) ?? cached[0] ?? null;
+        if (cachedWorkout) {
+          await applyWorkout(cachedWorkout);
+          if (isMounted) setIsLoading(false);
         }
 
-        if (isMounted) setWorkout(selectedWorkout);
+        // Refresh from API in background; update state only if workout changed.
+        try {
+          const fresh = await getUserWorkouts(userId);
+          const freshWorkout = fresh.find((w) => w.id === workoutId) ?? fresh[0] ?? null;
+          if (freshWorkout) await applyWorkout(freshWorkout);
+          else if (!cachedWorkout && isMounted) setError("Тренировка не найдена. Сначала получите план.");
+        } catch {
+          if (!cachedWorkout && isMounted) setError("Не удалось загрузить тренировку.");
+        }
       } catch (loadError) {
         if (isMounted) setError(loadError instanceof Error ? loadError.message : "Не удалось загрузить упражнение.");
       } finally {
