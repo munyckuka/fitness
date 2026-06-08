@@ -161,13 +161,21 @@ func (r *WorkoutRepository) DeletePendingInRange(ctx context.Context, userID str
 		return err
 	}
 
+	// Safe-to-delete: not completed AND has no workout_logs referencing it.
+	// This protects workouts whose status wasn't updated to 'completed'
+	// but already have a log (edge case from partial completion).
+	const safeToDelete = `
+		SELECT id FROM workouts
+		WHERE user_id = $1 AND planned_for >= $2 AND planned_for < $3
+		  AND status != 'completed'
+		  AND id NOT IN (
+			SELECT DISTINCT workout_id FROM workout_logs
+			WHERE workout_id IS NOT NULL
+		  )
+	`
+
 	_, err = tx.ExecContext(ctx, `
-		DELETE FROM workout_exercises
-		WHERE workout_id IN (
-			SELECT id FROM workouts
-			WHERE user_id = $1 AND planned_for >= $2 AND planned_for < $3
-			  AND status != 'completed'
-		)
+		DELETE FROM workout_exercises WHERE workout_id IN (`+safeToDelete+`)
 	`, parsedID, from, to)
 	if err != nil {
 		tx.Rollback()
@@ -175,9 +183,7 @@ func (r *WorkoutRepository) DeletePendingInRange(ctx context.Context, userID str
 	}
 
 	_, err = tx.ExecContext(ctx, `
-		DELETE FROM workouts
-		WHERE user_id = $1 AND planned_for >= $2 AND planned_for < $3
-		  AND status != 'completed'
+		DELETE FROM workouts WHERE id IN (`+safeToDelete+`)
 	`, parsedID, from, to)
 	if err != nil {
 		tx.Rollback()
