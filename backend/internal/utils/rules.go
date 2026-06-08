@@ -28,13 +28,15 @@ func RestByGoal(goal string) int {
 }
 
 func MaxExercisesByFreq(freq int) int {
-	switch freq {
-	case 2:
-		return 6
-	case 3:
-		return 9
+	switch {
+	case freq <= 1:
+		return 8 // single fullbody session — needs to hit as many muscle groups as possible
+	case freq == 2:
+		return 7 // two fullbody sessions — distribute coverage across the pair
+	case freq == 3:
+		return 6 // PPL — focused sessions (push/pull/legs cover 3-4 muscles each)
 	default:
-		return 6
+		return 6 // upper/lower — balanced 5-6 muscles per session
 	}
 }
 

@@ -31,6 +31,9 @@ type GenerateWorkoutOptions struct {
 	// ExcludeIDs lists exercise IDs already used in an earlier session this week
 	// so repeated split types (upper×2, lower×2, fullbody×2) use different exercises.
 	ExcludeIDs []uuid.UUID
+	// RequiredMuscles lists muscle groups not yet covered this week that must
+	// have at least one exercise in this session (fullbody weekly coverage guarantee).
+	RequiredMuscles []string
 }
 
 const WarningOvertraining = "overtraining_detected"

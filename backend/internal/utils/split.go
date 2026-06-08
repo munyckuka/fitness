@@ -117,6 +117,59 @@ func GetMusclesForSplit(splitPart string) []string {
 	return splitMuscles[splitPart]
 }
 
+// muscleTarget defines how many exercises of a given muscle group belong in
+// a single workout session for a particular split type.
+// Values are grounded in Renaissance Periodization (Israetel) MEV/MAV data:
+//   - Large muscles (chest, back, legs):  MEV ~10-20 sets/week → 2 exercises/session
+//   - Medium muscles (shoulder, glutes):  MEV ~8-16 sets/week  → 1-2 exercises/session
+//   - Small muscles (bicep, tricep, calves): MEV ~6-14 sets/week → 1 exercise/session
+type muscleTarget struct{ min, max int }
+
+var muscleTargetsBySplit = map[string]map[string]muscleTarget{
+	"fullbody": {
+		"chest":     {1, 2},
+		"back":      {1, 2},
+		"legs":      {1, 2},
+		"glutes":    {0, 1},
+		"shoulder":  {0, 1},
+		"core":      {0, 1},
+		"bicep":     {0, 1},
+		"tricep":    {0, 1},
+		"calves":    {0, 1},
+		"full body": {0, 1},
+	},
+	"upper": {
+		"chest":    {1, 2},
+		"back":     {1, 2},
+		"shoulder": {1, 2},
+		"bicep":    {1, 1},
+		"tricep":   {1, 1},
+		"core":     {0, 1},
+	},
+	"lower": {
+		"legs":   {2, 3},
+		"glutes": {1, 2},
+		"calves": {1, 1},
+		"core":   {0, 1},
+	},
+	"push": {
+		"chest":    {2, 3},
+		"shoulder": {1, 2},
+		"tricep":   {1, 2},
+	},
+	"pull": {
+		"back":  {2, 3},
+		"bicep": {1, 2},
+	},
+	"legs": {
+		"legs":   {2, 3},
+		"glutes": {1, 2},
+		"calves": {1, 1},
+		"core":   {0, 1},
+	},
+}
+
+
 func FilterByMuscles(exercises []domain.Exercise, muscles []string) []domain.Exercise {
 	if len(muscles) == 0 {
 		return exercises

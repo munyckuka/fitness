@@ -113,10 +113,11 @@ func (s *workoutService) GenerateWorkout(
 	}
 
 	scored := utils.ScoreExercises(pool, user)
-	selected := utils.SelectTopExercises(
+	selected := utils.SelectExercisesByMuscleTargets(
 		scored,
+		splitPart,
 		utils.MaxExercisesByFreq(user.Frequency),
-		2,
+		opts.RequiredMuscles,
 	)
 
 	fatigue := utils.CalculateFatigue(progress.TotalVolume, progress.LastWorkout)
@@ -428,6 +429,9 @@ func (s *workoutService) GenerateWeekWorkouts(
 	// Track exercise IDs already used per split type so repeated sessions
 	// (upper×2, lower×2, fullbody×2) receive a different exercise set.
 	usedByPart := make(map[string][]uuid.UUID)
+	// coveredMuscles tracks which muscle groups have been hit so far this week.
+	// Used only for fullbody splits to guarantee every muscle is covered weekly.
+	coveredMuscles := make(map[string]bool)
 
 	for _, dayOffset := range daysOfWeek {
 		d := dayOffset
@@ -436,11 +440,23 @@ func (s *workoutService) GenerateWeekWorkouts(
 		rotationIndex := utils.ResolveRotationIndex(d, daysOfWeek)
 		splitPart := utils.ResolveSplitPart(split, rotationIndex)
 
+		// For fullbody splits, pass uncovered muscles as required so the
+		// overall weekly cycle guarantees every muscle group is hit at least once.
+		var requiredMuscles []string
+		if split == domain.SplitFullBody {
+			for _, m := range utils.GetMusclesForSplit("fullbody") {
+				if !coveredMuscles[m] {
+					requiredMuscles = append(requiredMuscles, m)
+				}
+			}
+		}
+
 		opts := GenerateWorkoutOptions{
-			DayIndex:    &d,
-			Preferences: prefs,
-			PlannedFor:  &dt,
-			ExcludeIDs:  usedByPart[splitPart],
+			DayIndex:        &d,
+			Preferences:     prefs,
+			PlannedFor:      &dt,
+			ExcludeIDs:      usedByPart[splitPart],
+			RequiredMuscles: requiredMuscles,
 		}
 
 		result, err := s.GenerateWorkout(ctx, userID, opts)
@@ -450,6 +466,7 @@ func (s *workoutService) GenerateWeekWorkouts(
 
 		for _, ex := range result.Workout.Exercises {
 			usedByPart[splitPart] = append(usedByPart[splitPart], ex.ExerciseID)
+			coveredMuscles[ex.MuscleGroup] = true
 		}
 
 		response = append(response, result.Workout)
