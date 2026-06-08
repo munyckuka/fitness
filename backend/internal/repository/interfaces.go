@@ -50,6 +50,9 @@ type WorkoutRepository interface {
 	UpdateStatus(ctx context.Context, id string, status domain.WorkoutStatus) error
 	ReplaceExercise(ctx context.Context, workoutID string, oldExerciseID string, newExerciseID string) error
 	Delete(ctx context.Context, workoutID string, userID string) error
+	// DeletePendingInRange removes non-completed workouts in [from, to) for a user,
+	// leaving completed workouts (and their logs) intact.
+	DeletePendingInRange(ctx context.Context, userID string, from time.Time, to time.Time) error
 }
 
 type ExerciseRepository interface {

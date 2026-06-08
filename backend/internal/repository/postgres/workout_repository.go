@@ -150,6 +150,43 @@ func (r *WorkoutRepository) Delete(ctx context.Context, workoutID string, userID
 	return tx.Commit()
 }
 
+func (r *WorkoutRepository) DeletePendingInRange(ctx context.Context, userID string, from time.Time, to time.Time) error {
+	parsedID, err := uuid.Parse(userID)
+	if err != nil {
+		return err
+	}
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.ExecContext(ctx, `
+		DELETE FROM workout_exercises
+		WHERE workout_id IN (
+			SELECT id FROM workouts
+			WHERE user_id = $1 AND planned_for >= $2 AND planned_for < $3
+			  AND status != 'completed'
+		)
+	`, parsedID, from, to)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	_, err = tx.ExecContext(ctx, `
+		DELETE FROM workouts
+		WHERE user_id = $1 AND planned_for >= $2 AND planned_for < $3
+		  AND status != 'completed'
+	`, parsedID, from, to)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return tx.Commit()
+}
+
 func (r *WorkoutRepository) ReplaceExercise(
 	ctx context.Context,
 	workoutID string,

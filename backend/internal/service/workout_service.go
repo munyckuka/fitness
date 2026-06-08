@@ -399,47 +399,19 @@ func (s *workoutService) GenerateWeekWorkouts(
 	}
 
 	endDate := startDate.AddDate(0, 0, 7)
-	existing, err := s.WorkoutRepo.GetByUserBetween(ctx, userID, startDate, endDate)
-	if err != nil {
+
+	// Delete pending (non-completed) workouts in the range so we always start fresh.
+	// Completed workouts and their logs are intentionally left untouched.
+	if err := s.WorkoutRepo.DeletePendingInRange(ctx, userID, startDate, endDate); err != nil {
 		return nil, err
-	}
-
-	existingMap := make(map[string]domain.Workout)
-	for _, w := range existing {
-		if w.Status == domain.Created || w.Status == domain.InProgress {
-			dateStr := w.PlannedFor.Format("2006-01-02")
-			existingMap[dateStr] = w
-		}
-	}
-
-	// Build the set of target dates so we can include existing workouts for those dates.
-	targetDates := make(map[string]bool, len(daysOfWeek))
-	for _, dayOffset := range daysOfWeek {
-		date := startDate.AddDate(0, 0, dayOffset)
-		targetDates[date.Format("2006-01-02")] = true
 	}
 
 	var response []domain.Workout
 
-	// Include already-generated workouts that fall on target dates.
-	for _, w := range existing {
-		if w.Status == domain.Created || w.Status == domain.InProgress {
-			if targetDates[w.PlannedFor.Format("2006-01-02")] {
-				response = append(response, w)
-			}
-		}
-	}
-
-	// Generate only for dates that don't yet have a workout.
 	for _, dayOffset := range daysOfWeek {
-		date := startDate.AddDate(0, 0, dayOffset)
-		dateStr := date.Format("2006-01-02")
-		if _, exists := existingMap[dateStr]; exists {
-			continue
-		}
+		d := dayOffset
+		dt := startDate.AddDate(0, 0, d)
 
-		d := dayOffset // capture loop variable
-		dt := date
 		opts := GenerateWorkoutOptions{
 			DayIndex:    &d,
 			Preferences: prefs,
@@ -448,7 +420,6 @@ func (s *workoutService) GenerateWeekWorkouts(
 
 		result, err := s.GenerateWorkout(ctx, userID, opts)
 		if err != nil {
-			// skip this day rather than aborting the whole week
 			continue
 		}
 
