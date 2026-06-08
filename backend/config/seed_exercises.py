@@ -5,13 +5,16 @@ Replaces all existing exercises in the DB.
 """
 
 import json
+import os
 import time
 import uuid
 import requests
 import psycopg2
 from deep_translator import GoogleTranslator
 
-DB_URL = "postgresql://neondb_owner:npg_LtRS6xgp3qnF@ep-delicate-breeze-alm92i82-pooler.c-3.eu-central-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+DB_URL = os.environ.get("DATABASE_URL")
+if not DB_URL:
+    raise RuntimeError("DATABASE_URL env var is not set. Export it before running this script.")
 EXERCISES_URL = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/dist/exercises.json"
 IMAGE_BASE = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/"
 
@@ -63,11 +66,11 @@ def translate(text: str, retries: int = 3) -> str:
         return ""
     for attempt in range(retries):
         try:
-            result = translator.translate(text[:500])
+            result = translator.translate(text[:1500])
             return result or text
         except Exception as e:
             if attempt < retries - 1:
-                time.sleep(2)
+                time.sleep(2 ** attempt)
             else:
                 print(f"  [warn] translation failed for '{text[:40]}': {e}")
                 return text
@@ -139,19 +142,14 @@ def main():
         equipment = map_equipment(equipment_raw)
         difficulty = map_level(level_raw)
         photo_path = IMAGE_BASE + images[0] if images else None
-        description_en = instructions[0].strip() if instructions else ""
+        # Join all instruction steps into one description
+        description_en = " ".join(s.strip() for s in instructions if s.strip())
 
         # Translate name
         print(f"[{i+1}/{len(data)}] Translating: {name_en}")
         name_ru = translate(name_en)
 
-        # Short description — first instruction only, max 200 chars
-        if description_en:
-            desc_ru = translate(description_en)
-            if len(desc_ru) > 200:
-                desc_ru = desc_ru[:197] + "..."
-        else:
-            desc_ru = None
+        desc_ru = translate(description_en) if description_en else None
 
         cur.execute(
             """
