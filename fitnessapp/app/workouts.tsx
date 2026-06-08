@@ -134,13 +134,14 @@ export default function Workouts() {
     );
   };
 
-  const handleOpenExercise = (exerciseName: string, categoryTitle: string, imageUri: string) => {
+  const handleOpenExercise = (exerciseName: string, categoryTitle: string, imageUri: string, description?: string) => {
     router.push({
       pathname: "/workout-exercise",
       params: {
         name: exerciseName,
         category: categoryTitle,
         imageUri,
+        description: description ?? "",
       },
     });
   };
@@ -313,7 +314,7 @@ export default function Workouts() {
                   <TouchableOpacity
                     key={exercise.id}
                     activeOpacity={0.85}
-                    onPress={() => handleOpenExercise(exercise.name, category.title, exercise.imageUri ?? "")}
+                    onPress={() => handleOpenExercise(exercise.name, category.title, exercise.imageUri ?? "", exercise.description)}
                     style={{
                       width: 118,
                       borderRadius: 18,

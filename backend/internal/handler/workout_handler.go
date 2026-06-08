@@ -232,6 +232,8 @@ func (h *WorkoutHandler) ListExercises(c *gin.Context) {
 			MuscleGroup:            ex.MuscleGroup,
 			RequiredEquipment:      ex.RequiredEquipment,
 			DifficultyLevel:        dl,
+			Description:            ex.Description,
+			PhotoPath:              ex.PhotoPath,
 			MuscleGroupLabel:       muscleGroupLabel(ex.MuscleGroup),
 			RequiredEquipmentLabel: equipmentLabel(ex.RequiredEquipment),
 			DifficultyLabel:        dl,

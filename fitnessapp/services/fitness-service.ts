@@ -304,11 +304,15 @@ export type ExerciseSearchResult = {
   muscleGroup: string;
   requiredEquipment?: string;
   difficultyLevel?: string;
+  imageUri?: string;
+  description?: string;
   // labels for display
   muscleGroupLabel?: string;
   requiredEquipmentLabel?: string;
   difficultyLabel?: string;
 };
+
+type BackendExerciseDTO = ExerciseSearchResult & { photoPath?: string };
 
 export async function searchExercises(query?: string, muscle?: string, limit?: number) {
   const params = new URLSearchParams();
@@ -316,8 +320,12 @@ export async function searchExercises(query?: string, muscle?: string, limit?: n
   if (muscle) params.append("muscle", muscle);
   if (limit && limit > 0) params.append("limit", String(limit));
 
-  const payload = await apiRequest<ExerciseSearchResult[]>(`/exercises?${params.toString()}`);
-  return Array.isArray(payload) ? payload : [];
+  const payload = await apiRequest<BackendExerciseDTO[]>(`/exercises?${params.toString()}`);
+  if (!Array.isArray(payload)) return [];
+  return payload.map((ex) => ({
+    ...ex,
+    imageUri: ex.photoPath && ex.photoPath.length > 0 ? ex.photoPath : undefined,
+  }));
 }
 
 function normalizeProgress(payload: BackendProgress): ProgressData {

@@ -71,8 +71,8 @@ export async function cacheExercises(exercises: ExerciseSearchResult[]): Promise
           ex.muscleGroup ?? null,
           ex.requiredEquipment ?? null,
           ex.difficultyLevel ?? null,
-          null,
-          null,
+          ex.description ?? null,
+          ex.imageUri ?? null,
           now,
         ]
       );
@@ -114,5 +114,7 @@ function rowToResult(row: ExerciseRow): ExerciseSearchResult {
     muscleGroup: row.muscle_group ?? "",
     requiredEquipment: row.required_equipment ?? undefined,
     difficultyLevel: row.difficulty_level ?? undefined,
+    description: row.description ?? undefined,
+    imageUri: row.photo_path ?? undefined,
   };
 }
