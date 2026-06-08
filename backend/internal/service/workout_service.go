@@ -412,8 +412,25 @@ func (s *workoutService) GenerateWeekWorkouts(
 		}
 	}
 
-	var generated []domain.Workout
+	// Build the set of target dates so we can include existing workouts for those dates.
+	targetDates := make(map[string]bool, len(daysOfWeek))
+	for _, dayOffset := range daysOfWeek {
+		date := startDate.AddDate(0, 0, dayOffset)
+		targetDates[date.Format("2006-01-02")] = true
+	}
 
+	var response []domain.Workout
+
+	// Include already-generated workouts that fall on target dates.
+	for _, w := range existing {
+		if w.Status == domain.Created || w.Status == domain.InProgress {
+			if targetDates[w.PlannedFor.Format("2006-01-02")] {
+				response = append(response, w)
+			}
+		}
+	}
+
+	// Generate only for dates that don't yet have a workout.
 	for _, dayOffset := range daysOfWeek {
 		date := startDate.AddDate(0, 0, dayOffset)
 		dateStr := date.Format("2006-01-02")
@@ -432,8 +449,8 @@ func (s *workoutService) GenerateWeekWorkouts(
 			return nil, err
 		}
 
-		generated = append(generated, result.Workout)
+		response = append(response, result.Workout)
 	}
 
-	return generated, nil
+	return response, nil
 }
