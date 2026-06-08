@@ -11,12 +11,12 @@ var pplSplit = []string{"push", "pull", "legs"}
 var ulSplit = []string{"upper", "lower"}
 
 var splitMuscles = map[string][]string{
-	"push":     {"chest", "shoulders", "triceps"},
-	"pull":     {"back", "biceps"},
+	"push":     {"chest", "shoulder", "tricep"},
+	"pull":     {"back", "bicep"},
 	"legs":     {"legs", "calves", "glutes", "core"},
-	"upper":    {"chest", "back", "shoulders", "biceps", "triceps", "core"},
+	"upper":    {"chest", "back", "shoulder", "bicep", "tricep", "core"},
 	"lower":    {"legs", "calves", "glutes", "core"},
-	"fullbody": {"chest", "back", "legs", "shoulders", "biceps", "triceps", "calves", "glutes", "core", "full body"},
+	"fullbody": {"chest", "back", "legs", "shoulder", "bicep", "tricep", "calves", "glutes", "core", "full body"},
 }
 
 // ResolveSplitPart returns the split part (push/pull/legs/upper/lower/fullbody)
