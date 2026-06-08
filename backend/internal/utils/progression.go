@@ -22,10 +22,10 @@ func UpdateModifierAdvanced(
 	fatigue float64,
 ) float64 {
 
-	// difficulty influence
-	if difficulty >= 8 {
+	// difficulty influence: 1=easy → increase weight, 10=hard → decrease weight
+	if difficulty <= 3 {
 		current *= 1.03
-	} else if difficulty <= 4 {
+	} else if difficulty >= 8 {
 		current *= 0.97
 	}
 

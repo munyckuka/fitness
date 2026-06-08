@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Image, SafeAreaView, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, SafeAreaView, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { colors } from "./theme";
@@ -20,6 +20,9 @@ import {
   setWorkoutProgress,
 } from "@/services/session-service";
 
+const isUUID = (value: string) =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+
 export default function TrainingExercise() {
   const router = useRouter();
   const params = useLocalSearchParams<{ exercise?: string; workoutId?: string }>();
@@ -27,6 +30,7 @@ export default function TrainingExercise() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const restTip = getTipOfTheDay({ screen: "training-exercise", placement: "rest-timer" });
+
   const rawIndex = Number(params.exercise ?? "0");
   const exercises = workout?.exercises ?? [];
   const currentIndex = Number.isFinite(rawIndex) ? Math.min(Math.max(rawIndex, 0), Math.max(exercises.length - 1, 0)) : 0;
@@ -36,6 +40,7 @@ export default function TrainingExercise() {
   const repsPerSet = String(currentExercise?.reps ?? 8);
   const restSeconds = currentExercise?.restSeconds ?? 180;
   const weightLabel = typeof currentExercise?.weight === "number" ? `${currentExercise.weight} кг` : null;
+
   const [completedSets, setCompletedSets] = useState<boolean[]>(Array.from({ length: setCount }, () => false));
   const [completedSetsByExercise, setCompletedSetsByExercise] = useState<Record<string, boolean[]>>({});
   const [setQualitiesByExercise, setSetQualitiesByExercise] = useState<Record<string, (number | undefined)[]>>({});
@@ -51,9 +56,7 @@ export default function TrainingExercise() {
         const workoutId = params.workoutId ?? (await getStoredWorkoutId());
 
         if (!userId || !workoutId) {
-          if (isMounted) {
-            setError("Тренировка не найдена. Сначала получите план.");
-          }
+          if (isMounted) setError("Тренировка не найдена. Сначала получите план.");
           return;
         }
 
@@ -71,31 +74,19 @@ export default function TrainingExercise() {
 
           await setWorkoutProgress(selectedWorkout.id, progressByExercise);
           await clearPendingWorkoutCompletion();
-
-          if (isMounted) {
-            setCompletedSetsByExercise(progressByExercise);
-          }
+          if (isMounted) setCompletedSetsByExercise(progressByExercise);
         }
 
-        if (isMounted) {
-          setWorkout(selectedWorkout);
-        }
+        if (isMounted) setWorkout(selectedWorkout);
       } catch (loadError) {
-        if (isMounted) {
-          setError(loadError instanceof Error ? loadError.message : "Не удалось загрузить упражнение.");
-        }
+        if (isMounted) setError(loadError instanceof Error ? loadError.message : "Не удалось загрузить упражнение.");
       } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
+        if (isMounted) setIsLoading(false);
       }
     };
 
-    loadWorkout();
-
-    return () => {
-      isMounted = false;
-    };
+    void loadWorkout();
+    return () => { isMounted = false; };
   }, [params.workoutId]);
 
   useEffect(() => {
@@ -103,370 +94,381 @@ export default function TrainingExercise() {
       setCompletedSets(Array.from({ length: setCount }, () => false));
       return;
     }
-
     const currentProgress = completedSetsByExercise[currentExercise.id] ?? Array.from({ length: setCount }, () => false);
     setCompletedSets(currentProgress);
     const existingQualities = setQualitiesByExercise[currentExercise.id] ?? Array.from({ length: setCount }, () => undefined);
-    setSetQualitiesByExercise((prev: Record<string, (number | undefined)[]>) => ({ ...prev, [currentExercise.id]: existingQualities }));
+    setSetQualitiesByExercise((prev) => ({ ...prev, [currentExercise.id]: existingQualities }));
     setTimerSeconds(restSeconds);
     setIsTimerRunning(false);
   }, [completedSetsByExercise, currentExercise, currentIndex, restSeconds, setCount]);
 
   useEffect(() => {
-    if (!isTimerRunning || timerSeconds <= 0) {
-      return;
-    }
-
-    const intervalId = setInterval(() => {
-      setTimerSeconds((prev: number) => {
-        if (prev <= 1) {
-          setIsTimerRunning(false);
-          return 0;
-        }
+    if (!isTimerRunning || timerSeconds <= 0) return;
+    const id = setInterval(() => {
+      setTimerSeconds((prev) => {
+        if (prev <= 1) { setIsTimerRunning(false); return 0; }
         return prev - 1;
       });
     }, 1000);
-
-    return () => clearInterval(intervalId);
+    return () => clearInterval(id);
   }, [isTimerRunning, timerSeconds]);
 
   const toggleSet = (index: number) => {
-    if (!workout || !currentExercise) {
-      return;
-    }
-
-    setCompletedSets((prev: boolean[]) => {
-      const next = prev.map((value, idx) => (idx === index ? !value : value));
-      const nextProgress = {
-        ...completedSetsByExercise,
-        [currentExercise.id]: next,
-      };
-
+    if (!workout || !currentExercise) return;
+    setCompletedSets((prev) => {
+      const next = prev.map((v, i) => (i === index ? !v : v));
+      const nextProgress = { ...completedSetsByExercise, [currentExercise.id]: next };
       setCompletedSetsByExercise(nextProgress);
       void setWorkoutProgress(workout.id, nextProgress);
-
-      // initialize quality for this set if it was just completed
-        setSetQualitiesByExercise((prev: Record<string, (number | undefined)[]>) => {
-            const existing = prev[currentExercise.id] ?? Array.from({ length: setCount }, () => undefined);
-        const nextQualities = existing.slice();
-        if (next[index] && nextQualities[index] === undefined) {
-          nextQualities[index] = 6; // default rpe
-        }
-        return { ...prev, [currentExercise.id]: nextQualities };
+      setSetQualitiesByExercise((prevQ) => {
+        const existing = prevQ[currentExercise.id] ?? Array.from({ length: setCount }, () => undefined);
+        const nextQ = existing.slice();
+        if (next[index] && nextQ[index] === undefined) nextQ[index] = 6;
+        return { ...prevQ, [currentExercise.id]: nextQ };
       });
-
       return next;
     });
   };
 
-  const formatTimer = (totalSeconds: number) => {
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
-  };
+  const formatTimer = (s: number) =>
+    `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 
   const handleTimerToggle = () => {
-    if (timerSeconds === 0) {
-      setTimerSeconds(restSeconds);
-      setIsTimerRunning(true);
-      return;
-    }
-
-    setIsTimerRunning((prev: boolean) => !prev);
-  };
-
-  const handleTimerReset = () => {
-    setIsTimerRunning(false);
-    setTimerSeconds(restSeconds);
+    if (timerSeconds === 0) { setTimerSeconds(restSeconds); setIsTimerRunning(true); return; }
+    setIsTimerRunning((prev) => !prev);
   };
 
   const handleNext = () => {
-    if (!workout || !currentExercise) {
-      return;
-    }
-
-    const nextProgress = {
-      ...completedSetsByExercise,
-      [currentExercise.id]: completedSets,
-    };
-
+    if (!workout || !currentExercise) return;
+    const nextProgress = { ...completedSetsByExercise, [currentExercise.id]: completedSets };
     setCompletedSetsByExercise(nextProgress);
     void setWorkoutProgress(workout.id, nextProgress);
-
-    if (isLastExercise) {
-      void finishWorkout(workout.id);
-    } else {
-      router.push(`/training-exercise?workoutId=${workout.id}&exercise=${currentIndex + 1}`);
-    }
+    if (isLastExercise) void finishWorkout(workout.id);
+    else router.push(`/training-exercise?workoutId=${workout.id}&exercise=${currentIndex + 1}`);
   };
 
   const finishWorkout = async (workoutId: string) => {
     try {
-      if (!workout) {
-        setError("Тренировка не найдена.");
-        return;
-      }
-
-      const progressMap = {
-        ...completedSetsByExercise,
-        [currentExercise?.id ?? ""]: completedSets,
-      };
-
+      if (!workout) { setError("Тренировка не найдена."); return; }
+      const progressMap = { ...completedSetsByExercise, [currentExercise?.id ?? ""]: completedSets };
       const exercisesPayload = workout.exercises
-          .map((exercise: WorkoutExercise) => {
-               const exerciseProgress = (progressMap[exercise.id] ?? []) as boolean[];
-               const qualities = (setQualitiesByExercise[exercise.id] ?? []) as (number | undefined)[];
-
-               const sets = exerciseProgress
-                 .map((done: boolean, idx: number) => ({ done, idx }))
-                 .filter((item: { done: boolean; idx: number }) => item.done)
-                 .map((item: { done: boolean; idx: number }) => ({
-                   reps: exercise.reps,
-                   weight: typeof exercise.weight === "number" ? exercise.weight : 0,
-                   rpe: qualities[item.idx] ?? undefined,
-                 }));
-
-          if (!isUUID(exercise.id) || sets.length === 0) {
-            return null;
-          }
-
-          return {
-            exerciseId: exercise.id,
-            sets,
-          };
+        .map((exercise: WorkoutExercise) => {
+          const exerciseProgress = (progressMap[exercise.id] ?? []) as boolean[];
+          const qualities = (setQualitiesByExercise[exercise.id] ?? []) as (number | undefined)[];
+          const sets = exerciseProgress
+            .map((done, idx) => ({ done, idx }))
+            .filter(({ done }) => done)
+            .map(({ idx }) => ({
+              reps: exercise.reps,
+              weight: typeof exercise.weight === "number" ? exercise.weight : 0,
+              rpe: qualities[idx] ?? undefined,
+            }));
+          if (!isUUID(exercise.id) || sets.length === 0) return null;
+          return { exerciseId: exercise.id, sets };
         })
-        .filter((item: CompleteWorkoutExerciseInput | null): item is CompleteWorkoutExerciseInput => item !== null);
+        .filter((item): item is CompleteWorkoutExerciseInput => item !== null);
 
       await setWorkoutProgress(workout.id, progressMap);
-      await setPendingWorkoutCompletion({
-        workoutId,
-        exercises: exercisesPayload as CompleteWorkoutExerciseInput[],
-      });
-
+      await setPendingWorkoutCompletion({ workoutId, exercises: exercisesPayload });
       router.push(`/training-feedback?workoutId=${workoutId}`);
-    } catch (completionError) {
-      setError(completionError instanceof Error ? completionError.message : "Не удалось завершить тренировку.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Не удалось завершить тренировку.");
     }
   };
 
-  const isUUID = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+  const doneCount = completedSets.filter(Boolean).length;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background, paddingTop: 20 }}>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
-        <Text style={{ color: colors.textPrimary, fontSize: 20, lineHeight: 50, fontWeight: "500", marginBottom: 20 }}>
-          Тренировка
-        </Text>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background, paddingTop: 35 }}>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
 
-        {isLoading ? <ActivityIndicator color={colors.accent} style={{ marginBottom: 18 }} /> : null}
-        {error ? <Text style={{ color: "#FF8A80", marginBottom: 18 }}>{error}</Text> : null}
-
-        <View style={{ backgroundColor: colors.thirdary, borderRadius: 20, padding: 18, marginBottom: 18 }}>
-          <Text style={{ color: colors.textPrimary, fontSize: 20, fontWeight: "500", marginBottom: 14 }}>
-            {workout?.title ?? "План тренировки"}
-          </Text>
-
-          <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-            <View style={{ flex: 1, paddingRight: 12 }}>
-              <Text style={{ color: colors.textSecondary, fontSize: 18, marginBottom: 4 }}>Цель:</Text>
-              <Text style={{ color: colors.textPrimary, fontSize: 18, marginBottom: 14 }}>{workout?.goal ?? "-"}</Text>
-
-              <Text style={{ color: colors.textSecondary, fontSize: 18, marginBottom: 4 }}>Снаряжение:</Text>
-              <Text style={{ color: colors.textPrimary, fontSize: 18 }}>{workout?.equipment ?? "-"}</Text>
-            </View>
-
-            <View style={{ flex: 1, paddingLeft: 12 }}>
-              <Text style={{ color: colors.textSecondary, fontSize: 18, marginBottom: 4 }}>Уровень:</Text>
-              <Text style={{ color: colors.textPrimary, fontSize: 18, marginBottom: 14 }}>{workout?.level ?? "-"}</Text>
-
-              <Text style={{ color: colors.textSecondary, fontSize: 18, marginBottom: 4 }}>Длительность:</Text>
-              <Text style={{ color: colors.textPrimary, fontSize: 18 }}>{workout?.durationMinutes ?? 0} мин.</Text>
-            </View>
+        {/* Header row */}
+        <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 20 }}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            style={{ marginRight: 12 }}
+          >
+            <MaterialIcons name="arrow-back" size={24} color={colors.textSecondary} />
+          </TouchableOpacity>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: colors.textPrimary, fontSize: 18, fontWeight: "700" }}>
+              {workout?.title ?? "Тренировка"}
+            </Text>
+            <Text style={{ color: colors.textSecondary, fontSize: 13, marginTop: 2 }}>
+              Упражнение {currentIndex + 1} из {exercises.length}
+            </Text>
           </View>
         </View>
 
-        <Text style={{ color: colors.textPrimary, fontSize: 22, fontWeight: "500", marginBottom: 12 }}>
-          Упражнение:
-        </Text>
-
-        <View style={{ backgroundColor: colors.thirdary, borderRadius: 20, padding: 18, marginBottom: 20 }}>
-          <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 16 }}>
+        {/* Progress bar */}
+        {exercises.length > 0 ? (
+          <View style={{ height: 4, backgroundColor: colors.secondary, borderRadius: 4, marginBottom: 20 }}>
             <View
               style={{
-                width: 84,
-                height: 84,
+                height: 4,
+                borderRadius: 4,
+                backgroundColor: colors.accent,
+                width: `${((currentIndex + 1) / exercises.length) * 100}%`,
+              }}
+            />
+          </View>
+        ) : null}
+
+        {isLoading ? <ActivityIndicator color={colors.accent} style={{ marginBottom: 18 }} /> : null}
+        {error ? (
+          <View style={{ backgroundColor: "#FF8A8022", padding: 12, borderRadius: 14, marginBottom: 18 }}>
+            <Text style={{ color: "#FF8A80", textAlign: "center" }}>{error}</Text>
+          </View>
+        ) : null}
+
+        {/* Exercise card */}
+        <View
+          style={{
+            backgroundColor: colors.thirdary,
+            borderRadius: 20,
+            padding: 18,
+            marginBottom: 14,
+            borderWidth: 1,
+            borderColor: "rgba(255,255,255,0.05)",
+          }}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 18 }}>
+            <View
+              style={{
+                width: 52,
+                height: 52,
                 borderRadius: 16,
-                overflow: "hidden",
-                backgroundColor: "#ECECEC",
+                backgroundColor: `${colors.accent}22`,
+                alignItems: "center",
+                justifyContent: "center",
                 marginRight: 14,
               }}
             >
-              {currentExercise?.imageUri ? <Image source={{ uri: currentExercise.imageUri }} style={{ width: "100%", height: "100%" }} /> : null}
+              <Text style={{ color: colors.accent, fontSize: 20, fontWeight: "700" }}>{currentIndex + 1}</Text>
             </View>
-
-            <View style={{ flex: 1, paddingRight: 8 }}>
-              <Text style={{ color: colors.textPrimary, fontSize: 22, lineHeight: 28, fontWeight: "500" }}>
-                {currentIndex + 1}. {currentExercise?.name ?? "Упражнение"}
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: colors.textPrimary, fontSize: 18, fontWeight: "700" }}>
+                {currentExercise?.name ?? "Упражнение"}
               </Text>
-              <Text style={{ color: colors.textSecondary, fontSize: 15, marginTop: 2 }}>{currentExercise?.muscle ?? "Группа мышц"}</Text>
-            </View>
-
-            <View style={{ alignItems: "flex-start" }}>
-              <Text style={{ color: colors.textPrimary, fontSize: 18, fontWeight: "500" }}>{currentExercise?.sets ?? 0} × {currentExercise?.reps ?? 0}</Text>
-              {weightLabel ? <Text style={{ color: colors.textSecondary, fontSize: 15, marginTop: 2 }}>{weightLabel}</Text> : null}
-              <Text style={{ color: colors.textSecondary, fontSize: 15, marginTop: 2 }}>{currentExercise?.restSeconds ?? 0} сек. отдыха</Text>
+              <Text style={{ color: colors.textSecondary, fontSize: 13, marginTop: 3 }}>
+                {currentExercise?.muscle ?? ""}
+              </Text>
             </View>
           </View>
 
-          {completedSets.map((isDone: boolean, idx: number) => (
-            <View key={`set-${idx}`} style={{ marginBottom: 12 }}>
+          {/* Chips */}
+          <View style={{ flexDirection: "row", gap: 8, marginBottom: 20 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, backgroundColor: colors.secondary }}>
+              <MaterialIcons name="repeat" size={14} color={colors.accent} style={{ marginRight: 4 }} />
+              <Text style={{ color: colors.textSecondary, fontSize: 13 }}>{setCount} × {repsPerSet}</Text>
+            </View>
+            {weightLabel ? (
+              <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, backgroundColor: colors.secondary }}>
+                <MaterialIcons name="fitness-center" size={14} color={colors.accent} style={{ marginRight: 4 }} />
+                <Text style={{ color: colors.textSecondary, fontSize: 13 }}>{weightLabel}</Text>
+              </View>
+            ) : null}
+            <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, backgroundColor: colors.secondary }}>
+              <MaterialIcons name="timer" size={14} color={colors.accent} style={{ marginRight: 4 }} />
+              <Text style={{ color: colors.textSecondary, fontSize: 13 }}>{restSeconds} с</Text>
+            </View>
+          </View>
+
+          {/* Sets */}
+          <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>
+            <Text style={{ color: colors.textPrimary, fontSize: 15, fontWeight: "600", flex: 1 }}>Подходы</Text>
+            <Text style={{ color: colors.textSecondary, fontSize: 13 }}>{doneCount} / {setCount}</Text>
+          </View>
+
+          {completedSets.map((isDone, idx) => (
+            <View key={`set-${idx}`} style={{ marginBottom: 10 }}>
               <TouchableOpacity
                 activeOpacity={0.75}
                 onPress={() => toggleSet(idx)}
                 style={{
                   flexDirection: "row",
                   alignItems: "center",
-                  justifyContent: "space-between",
+                  paddingVertical: 12,
+                  paddingHorizontal: 14,
+                  borderRadius: 14,
+                  backgroundColor: isDone ? `${colors.accent}18` : colors.secondary,
+                  borderWidth: 1,
+                  borderColor: isDone ? `${colors.accent}44` : "transparent",
                 }}
               >
-                <View style={{ flexDirection: "row", alignItems: "center" }}>
-                  <MaterialIcons
-                    name={isDone ? "check-box" : "check-box-outline-blank"}
-                    size={30}
-                    color={isDone ? colors.accent : colors.textPrimary}
-                  />
-                  <Text style={{ color: colors.textPrimary, fontSize: 18, marginLeft: 12 }}>
-                    Подход {idx + 1}: {repsPerSet} повторений
-                  </Text>
-                </View>
-
-              </TouchableOpacity>
-
-              {isDone ? (
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingTop: 8, paddingBottom: 4 }}>
-                  <View style={{ flexDirection: "row", alignItems: "center" }}>
-                    {Array.from({ length: 10 }).map((_, vIdx) => {
-                      const value = vIdx + 1;
-                      const qualities = setQualitiesByExercise[currentExercise?.id ?? ""] ?? [];
-                      const selected = qualities[idx] === value;
-                      return (
-                        <TouchableOpacity
-                          key={`q-${idx}-${value}`}
-                          onPress={() =>
-                            setSetQualitiesByExercise((prev: Record<string, (number | undefined)[]>) => {
-                              const existing = prev[currentExercise?.id ?? ""] ?? Array.from({ length: setCount }, () => undefined);
-                              const next = existing.slice();
-                              next[idx] = value;
-                              return { ...prev, [currentExercise?.id ?? ""]: next };
-                            })
-                          }
-                          style={{
-                            minWidth: 36,
-                            height: 36,
-                            borderRadius: 8,
-                            justifyContent: "center",
-                            alignItems: "center",
-                            marginRight: 6,
-                            backgroundColor: selected ? colors.accent : colors.secondary,
-                          }}
-                        >
-                          <Text style={{ color: colors.textPrimary, fontSize: 13 }}>{value}</Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                </ScrollView>
-              ) : null}
-            </View>
-          ))}
-
-          <View style={{ marginTop: 6 }}>
-            <Text style={{ color: colors.textSecondary, fontSize: 16, marginBottom: 8 }}>
-              Таймер отдыха
-            </Text>
-
-            <Text style={{ color: colors.textPrimary, fontSize: 28, fontWeight: "700", marginBottom: 10, textAlign: "center" }}>
-              {formatTimer(timerSeconds)}
-            </Text>
-
-            <View style={{ flexDirection: "row", gap: 10 }}>
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={handleTimerReset}
-                style={{
-                  flex: 1,
-                  paddingVertical: 10,
-                  borderRadius: 12,
-                  backgroundColor: colors.secondary,
-                  justifyContent: "center",
-                  alignItems: "center",
-                }}
-              >
-                <Text style={{ color: colors.textSecondary, fontSize: 14, fontWeight: "600" }}>Сброс</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={handleTimerToggle}
-                style={{
-                  flex: 1,
-                  paddingVertical: 10,
-                  borderRadius: 12,
-                  backgroundColor: colors.accent,
-                  justifyContent: "center",
-                  alignItems: "center",
-                }}
-              >
-                <Text style={{ color: colors.textPrimary, fontSize: 14, fontWeight: "700" }}>
-                  {isTimerRunning ? "Пауза" : timerSeconds === 0 ? "Повторить" : "Старт"}
+                <MaterialIcons
+                  name={isDone ? "check-circle" : "radio-button-unchecked"}
+                  size={22}
+                  color={isDone ? colors.accent : colors.textSecondary}
+                  style={{ marginRight: 12 }}
+                />
+                <Text style={{ color: isDone ? colors.textPrimary : colors.textSecondary, fontSize: 15, fontWeight: "600", flex: 1 }}>
+                  Подход {idx + 1}
+                </Text>
+                <Text style={{ color: colors.textSecondary, fontSize: 14 }}>
+                  {repsPerSet} повт.{weightLabel ? `  ·  ${weightLabel}` : ""}
                 </Text>
               </TouchableOpacity>
 
-              
+              {isDone ? (
+                <View style={{ marginTop: 8, paddingHorizontal: 4 }}>
+                  <Text style={{ color: colors.textSecondary, fontSize: 12, marginBottom: 6 }}>(насколько тяжело, 1–10):
+                  </Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                    <View style={{ flexDirection: "row", gap: 6 }}>
+                      {Array.from({ length: 10 }).map((_, vIdx) => {
+                        const value = vIdx + 1;
+                        const qualities = setQualitiesByExercise[currentExercise?.id ?? ""] ?? [];
+                        const selected = qualities[idx] === value;
+                        return (
+                          <TouchableOpacity
+                            key={value}
+                            activeOpacity={0.8}
+                            onPress={() =>
+                              setSetQualitiesByExercise((prev) => {
+                                const existing = prev[currentExercise?.id ?? ""] ?? Array.from({ length: setCount }, () => undefined);
+                                const next = existing.slice();
+                                next[idx] = value;
+                                return { ...prev, [currentExercise?.id ?? ""]: next };
+                              })
+                            }
+                            style={{
+                              width: 36,
+                              height: 36,
+                              borderRadius: 10,
+                              justifyContent: "center",
+                              alignItems: "center",
+                              backgroundColor: selected ? colors.accent : colors.secondary,
+                              borderWidth: selected ? 2 : 0,
+                              borderColor: selected ? "rgba(255,255,255,0.35)" : "transparent",
+                            }}
+                          >
+                            <Text style={{ color: colors.textPrimary, fontSize: 13, fontWeight: "600" }}>{value}</Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </ScrollView>
+                </View>
+              ) : null}
             </View>
-
-            <Text style={{ color: colors.textSecondary, fontSize: 14, marginTop: 10 }}>
-              {restTip?.text ?? "Важно отдыхать. Восстановите дыхание между подходами."}
-            </Text>
-          </View>
+          ))}
         </View>
 
-        <Text style={{ color: colors.textSecondary, fontSize: 18, marginBottom: 20 }}>
-          Старайтесь делать на отказ
-        </Text>
+        {/* Rest timer */}
+        <View
+          style={{
+            backgroundColor: colors.thirdary,
+            borderRadius: 20,
+            padding: 18,
+            marginBottom: 14,
+            borderWidth: 1,
+            borderColor: "rgba(255,255,255,0.05)",
+          }}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 16 }}>
+            <View
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 12,
+                backgroundColor: `${colors.accent}22`,
+                alignItems: "center",
+                justifyContent: "center",
+                marginRight: 12,
+              }}
+            >
+              <MaterialIcons name="timer" size={20} color={colors.accent} />
+            </View>
+            <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: "700" }}>Таймер отдыха</Text>
+          </View>
 
+          <Text style={{ color: colors.textPrimary, fontSize: 48, fontWeight: "700", textAlign: "center", marginBottom: 16, letterSpacing: 2 }}>
+            {formatTimer(timerSeconds)}
+          </Text>
+
+          <View style={{ flexDirection: "row", gap: 10 }}>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => { setIsTimerRunning(false); setTimerSeconds(restSeconds); }}
+              style={{
+                flex: 1,
+                height: 44,
+                borderRadius: 12,
+                backgroundColor: colors.secondary,
+                justifyContent: "center",
+                alignItems: "center",
+              }}
+            >
+              <Text style={{ color: colors.textSecondary, fontSize: 14, fontWeight: "600" }}>Сброс</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={handleTimerToggle}
+              style={{
+                flex: 2,
+                height: 44,
+                borderRadius: 12,
+                backgroundColor: colors.accent,
+                flexDirection: "row",
+                justifyContent: "center",
+                alignItems: "center",
+              }}
+            >
+              <MaterialIcons
+                name={isTimerRunning ? "pause" : "play-arrow"}
+                size={20}
+                color="#FFFFFF"
+                style={{ marginRight: 4 }}
+              />
+              <Text style={{ color: "#FFFFFF", fontSize: 14, fontWeight: "700" }}>
+                {isTimerRunning ? "Пауза" : timerSeconds === 0 ? "Повторить" : "Старт"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {restTip ? (
+            <Text style={{ color: colors.textSecondary, fontSize: 13, marginTop: 12, lineHeight: 18 }}>
+              {restTip.text}
+            </Text>
+          ) : null}
+        </View>
+
+        {/* Navigation */}
         <View style={{ flexDirection: "row", gap: 12 }}>
           <TouchableOpacity
             activeOpacity={0.7}
             onPress={() => router.back()}
             style={{
               flex: 1,
-              paddingVertical: 10,
-              borderRadius: 14,
+              height: 52,
+              borderRadius: 16,
               backgroundColor: colors.secondary,
               justifyContent: "center",
               alignItems: "center",
             }}
           >
-            <Text style={{ color: colors.textSecondary, fontSize: 14, fontWeight: "600" }}>
-              Назад
-            </Text>
+            <MaterialIcons name="arrow-back" size={20} color={colors.textSecondary} />
           </TouchableOpacity>
 
           <TouchableOpacity
             activeOpacity={0.8}
             onPress={handleNext}
             style={{
-              flex: 1.9,
-              paddingVertical: 10,
-              borderRadius: 14,
+              flex: 3,
+              height: 52,
+              borderRadius: 16,
               backgroundColor: colors.accent,
+              flexDirection: "row",
               justifyContent: "center",
               alignItems: "center",
             }}
           >
-            <Text style={{ color: colors.textPrimary, fontSize: 14, fontWeight: "700" }}>
-              {isLastExercise ? "Закончить" : "Следующее упражнение"}
+            <Text style={{ color: "#FFFFFF", fontSize: 16, fontWeight: "700", marginRight: 6 }}>
+              {isLastExercise ? "Завершить тренировку" : "Следующее упражнение"}
             </Text>
+            <MaterialIcons name={isLastExercise ? "check" : "arrow-forward"} size={20} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
       </ScrollView>

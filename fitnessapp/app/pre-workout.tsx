@@ -1,8 +1,23 @@
 import { useState } from "react";
 import { SafeAreaView, ScrollView, Text, TouchableOpacity, View, TextInput } from "react-native";
+import { MaterialIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { colors } from "./theme";
 import { setRecoveryMetrics } from "@/services/session-service";
+
+const SLEEP_QUALITY_LABEL: Record<number, string> = {
+  1: "Плохо",
+  2: "Так себе",
+  3: "Нормально",
+  4: "Хорошо",
+  5: "Отлично",
+};
+
+const STRESS_HINT: Record<number, string> = {
+  1: "Полный покой",
+  5: "Умеренный",
+  10: "Очень высокий",
+};
 
 export default function PreWorkout() {
   const router = useRouter();
@@ -16,76 +31,194 @@ export default function PreWorkout() {
 
   const handleStart = async () => {
     const sleep = Number(sleepHours) || undefined;
-
-    await setRecoveryMetrics({
-      sleepHours: sleep,
-      sleepQuality,
-      stressLevel,
-    });
-
-    // navigate to first exercise
+    await setRecoveryMetrics({ sleepHours: sleep, sleepQuality, stressLevel });
     router.replace(`/training-exercise?workoutId=${workoutId}&exercise=0`);
   };
 
+  const stressHintEntry = Object.entries(STRESS_HINT)
+    .reverse()
+    .find(([k]) => stressLevel >= Number(k));
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background, paddingTop: 20 }}>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}>
-        <Text style={{ color: colors.textPrimary, fontSize: 24, lineHeight: 32, fontWeight: "600", marginBottom: 18 }}>
-          Перед началом тренировки
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
+
+        <TouchableOpacity
+          onPress={() => router.back()}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          style={{ marginBottom: 16, alignSelf: "flex-start" }}
+        >
+          <MaterialIcons name="arrow-back" size={24} color={colors.textSecondary} />
+        </TouchableOpacity>
+
+        <Text style={{ color: colors.textPrimary, fontSize: 28, fontWeight: "700", marginTop: 6 }}>
+          Перед тренировкой
+        </Text>
+        <Text style={{ color: colors.textSecondary, fontSize: 15, marginTop: 4, marginBottom: 24 }}>
+          Расскажите о своём состоянии
         </Text>
 
-        <View style={{ backgroundColor: colors.thirdary, borderRadius: 20, padding: 18, marginBottom: 16 }}>
-          <Text style={{ color: colors.textSecondary, fontSize: 14, marginBottom: 12 }}>Сколько часов вы спали?</Text>
-          <TextInput
-            keyboardType="numeric"
-            value={sleepHours}
-            onChangeText={setSleepHours}
-            placeholder="например, 7.5"
-            style={{
-              backgroundColor: colors.background,
-              padding: 10,
-              borderRadius: 10,
-              color: colors.textPrimary,
-              marginBottom: 12,
-            }}
-          />
+        {/* Sleep hours */}
+        <View
+          style={{
+            backgroundColor: colors.thirdary,
+            borderRadius: 20,
+            padding: 18,
+            marginBottom: 14,
+            borderWidth: 1,
+            borderColor: "rgba(255,255,255,0.05)",
+          }}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 14 }}>
+            <View
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 12,
+                backgroundColor: `${colors.accent}22`,
+                alignItems: "center",
+                justifyContent: "center",
+                marginRight: 12,
+              }}
+            >
+              <MaterialIcons name="bedtime" size={20} color={colors.accent} />
+            </View>
+            <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: "700" }}>Часы сна</Text>
+          </View>
 
-          <Text style={{ color: colors.textSecondary, fontSize: 14, marginBottom: 12 }}>Качество сна (1-5)</Text>
-          <View style={{ flexDirection: "row", gap: 8, marginBottom: 12 }}>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              backgroundColor: colors.secondary,
+              borderRadius: 14,
+              paddingHorizontal: 14,
+              height: 48,
+            }}
+          >
+            <MaterialIcons name="schedule" size={18} color={colors.textSecondary} style={{ marginRight: 8 }} />
+            <TextInput
+              keyboardType="numeric"
+              value={sleepHours}
+              onChangeText={setSleepHours}
+              placeholder="например, 7.5"
+              placeholderTextColor={colors.textSecondary}
+              style={{ flex: 1, color: colors.textPrimary, fontSize: 15 }}
+            />
+            <Text style={{ color: colors.textSecondary, fontSize: 14 }}>ч</Text>
+          </View>
+        </View>
+
+        {/* Sleep quality */}
+        <View
+          style={{
+            backgroundColor: colors.thirdary,
+            borderRadius: 20,
+            padding: 18,
+            marginBottom: 14,
+            borderWidth: 1,
+            borderColor: "rgba(255,255,255,0.05)",
+          }}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 14 }}>
+            <View
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 12,
+                backgroundColor: `${colors.accent}22`,
+                alignItems: "center",
+                justifyContent: "center",
+                marginRight: 12,
+              }}
+            >
+              <MaterialIcons name="star" size={20} color={colors.accent} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: "700" }}>Качество сна</Text>
+              <Text style={{ color: colors.textSecondary, fontSize: 13, marginTop: 2 }}>
+                {SLEEP_QUALITY_LABEL[sleepQuality]}
+              </Text>
+            </View>
+          </View>
+
+          <View style={{ flexDirection: "row", gap: 8 }}>
             {[1, 2, 3, 4, 5].map((v) => (
               <TouchableOpacity
                 key={v}
+                activeOpacity={0.85}
                 onPress={() => setSleepQuality(v)}
                 style={{
-                  paddingVertical: 8,
-                  paddingHorizontal: 12,
-                  borderRadius: 10,
+                  flex: 1,
+                  height: 46,
+                  borderRadius: 12,
+                  justifyContent: "center",
+                  alignItems: "center",
                   backgroundColor: sleepQuality === v ? colors.accent : colors.secondary,
+                  borderWidth: sleepQuality === v ? 2 : 0,
+                  borderColor: sleepQuality === v ? "rgba(255,255,255,0.35)" : "transparent",
                 }}
               >
-                <Text style={{ color: colors.textPrimary }}>{v}</Text>
+                <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: "700" }}>{v}</Text>
               </TouchableOpacity>
             ))}
           </View>
+        </View>
 
-          <Text style={{ color: colors.textSecondary, fontSize: 14, marginBottom: 12 }}>Уровень стресса (1-10)</Text>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
+        {/* Stress level */}
+        <View
+          style={{
+            backgroundColor: colors.thirdary,
+            borderRadius: 20,
+            padding: 18,
+            marginBottom: 24,
+            borderWidth: 1,
+            borderColor: "rgba(255,255,255,0.05)",
+          }}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 14 }}>
+            <View
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 12,
+                backgroundColor: `${colors.accent}22`,
+                alignItems: "center",
+                justifyContent: "center",
+                marginRight: 12,
+              }}
+            >
+              <MaterialIcons name="psychology" size={20} color={colors.accent} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: "700" }}>Уровень стресса</Text>
+              <Text style={{ color: colors.textSecondary, fontSize: 13, marginTop: 2 }}>
+                {stressHintEntry ? stressHintEntry[1] : ""}
+              </Text>
+            </View>
+          </View>
+
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
             {Array.from({ length: 10 }).map((_, i) => {
               const v = i + 1;
+              const selected = stressLevel === v;
               return (
                 <TouchableOpacity
                   key={v}
+                  activeOpacity={0.85}
                   onPress={() => setStressLevel(v)}
                   style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 8,
+                    width: 46,
+                    height: 46,
+                    borderRadius: 12,
                     justifyContent: "center",
                     alignItems: "center",
-                    backgroundColor: stressLevel === v ? colors.accent : colors.secondary,
+                    backgroundColor: selected ? colors.accent : colors.secondary,
+                    borderWidth: selected ? 2 : 0,
+                    borderColor: selected ? "rgba(255,255,255,0.35)" : "transparent",
                   }}
                 >
-                  <Text style={{ color: colors.textPrimary }}>{v}</Text>
+                  <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: "700" }}>{v}</Text>
                 </TouchableOpacity>
               );
             })}
@@ -96,32 +229,21 @@ export default function PreWorkout() {
           activeOpacity={0.85}
           onPress={() => void handleStart()}
           style={{
-            paddingVertical: 12,
-            borderRadius: 14,
+            height: 52,
+            borderRadius: 16,
             backgroundColor: colors.accent,
+            flexDirection: "row",
             justifyContent: "center",
             alignItems: "center",
             marginBottom: 12,
           }}
         >
-          <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: "700" }}>Начать тренировку</Text>
+          <MaterialIcons name="play-arrow" size={22} color="#FFFFFF" style={{ marginRight: 6 }} />
+          <Text style={{ color: "#FFFFFF", fontSize: 16, fontWeight: "700" }}>Начать тренировку</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          activeOpacity={0.85}
-          onPress={() => router.replace(`/training-exercise?workoutId=${workoutId}&exercise=0`)}
-          style={{
-            paddingVertical: 12,
-            borderRadius: 14,
-            backgroundColor: colors.secondary,
-            justifyContent: "center",
-            alignItems: "center",
-          }}
-        >
-          <Text style={{ color: colors.textSecondary, fontSize: 16 }}>Пропустить</Text>
-        </TouchableOpacity>
+
       </ScrollView>
     </SafeAreaView>
   );
 }
-

@@ -2,7 +2,6 @@ import { FontAwesome5, MaterialCommunityIcons, MaterialIcons } from "@expo/vecto
 import { useRouter, useSegments } from "expo-router";
 import { TouchableOpacity, View } from "react-native";
 import { colors } from "../app/theme";
-import { useSyncStatus } from "@/services/sync-service";
 
 const IconComponents = {
   MaterialCommunityIcons,
@@ -18,21 +17,10 @@ const NAV_ITEMS = [
   { key: "profile", iconType: "FontAwesome5", iconName: "user", route: "/profile" },
 ] as const;
 
-const SYNC_DOT_COLOR: Record<string, string> = {
-  syncing: colors.accent,
-  error: "#FF8A80",
-  idle: "#FFA040",
-};
-
 export function BottomNav() {
   const router = useRouter();
   const segments = useSegments();
   const currentRoute = segments.length > 0 ? `/${segments[0]}` : "/";
-  const { status, pendingCount } = useSyncStatus();
-
-  const showDot = pendingCount > 0 || status === "syncing" || status === "error";
-  const dotColor = SYNC_DOT_COLOR[status] ?? SYNC_DOT_COLOR.idle;
-
   return (
     <View
       style={{
@@ -70,19 +58,6 @@ export function BottomNav() {
         );
       })}
 
-      {showDot ? (
-        <View
-          style={{
-            position: "absolute",
-            top: 10,
-            right: 16,
-            width: 8,
-            height: 8,
-            borderRadius: 4,
-            backgroundColor: dotColor,
-          }}
-        />
-      ) : null}
     </View>
   );
 }

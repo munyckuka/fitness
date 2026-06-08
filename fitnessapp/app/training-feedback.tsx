@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { ActivityIndicator, SafeAreaView, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { MaterialIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { completeWorkoutOfflineFirst } from "@/services/offline-workout";
 import {
@@ -24,20 +25,17 @@ export default function TrainingFeedback() {
   const [error, setError] = useState<string | null>(null);
 
   const hint = useMemo(() => {
-    if (difficulty <= 2) {
-      return "1: не могу поднять веса";
-    }
-    if (difficulty <= 4) {
-      return "4: тяжело, надо больше времени на отдых или уменьшить повторения";
-    }
-    if (difficulty < 6) {
-      return "5: на следующей тренировке сделаю столько же";
-    }
-    if (difficulty < 8) {
-      return "7: легко, можно увеличить повторения ";
-    }
+    if (difficulty <= 2) return "1–2: очень легко, можно увеличить веса";
+    if (difficulty <= 4) return "3–4: комфортно, можно добавить повторения";
+    if (difficulty <= 6) return "5–6: умеренно, оставлю так же";
+    if (difficulty <= 8) return "7–8: тяжело, нужно больше отдыха";
+    return "9–10: очень тяжело, уменьшу вес или повторения";
+  }, [difficulty]);
 
-    return "10: легко, можно увеличить веса";
+  const difficultyColor = useMemo(() => {
+    if (difficulty <= 3) return "#8EE08E";
+    if (difficulty <= 6) return "#FFD166";
+    return "#FF8A80";
   }, [difficulty]);
 
   const handleFinish = async () => {
@@ -56,7 +54,6 @@ export default function TrainingFeedback() {
 
       const recovery = await getRecoveryMetrics();
 
-      // Saves locally first, syncs in background — works offline.
       await completeWorkoutOfflineFirst({
         userId,
         workoutId,
@@ -78,15 +75,57 @@ export default function TrainingFeedback() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background, paddingTop: 20 }}>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}>
-        <Text style={{ color: colors.textPrimary, fontSize: 24, lineHeight: 32, fontWeight: "600", marginBottom: 18 }}>
-          Укажите насколько было сложно/легко выполнить тренировку
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
+
+        <Text style={{ color: colors.textPrimary, fontSize: 28, fontWeight: "700", marginTop: 6 }}>
+          Как прошла тренировка?
+        </Text>
+        <Text style={{ color: colors.textSecondary, fontSize: 15, marginTop: 4, marginBottom: 24 }}>
+          Оцените сложность от 1 до 10
         </Text>
 
-        <View style={{ backgroundColor: colors.thirdary, borderRadius: 20, padding: 18, marginBottom: 16 }}>
-          <Text style={{ color: colors.textSecondary, fontSize: 14, marginBottom: 12 }}>Шкала сложности</Text>
+        {/* Big difficulty display */}
+        <View
+          style={{
+            backgroundColor: colors.thirdary,
+            borderRadius: 20,
+            padding: 24,
+            marginBottom: 14,
+            alignItems: "center",
+            borderWidth: 1,
+            borderColor: "rgba(255,255,255,0.05)",
+          }}
+        >
+          <Text style={{ color: difficultyColor, fontSize: 72, fontWeight: "700", lineHeight: 80 }}>
+            {difficulty}
+          </Text>
+          <Text style={{ color: colors.textSecondary, fontSize: 14, marginTop: 8, textAlign: "center" }}>
+            {hint}
+          </Text>
+        </View>
 
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
+        {/* Scale buttons */}
+        <View
+          style={{
+            backgroundColor: colors.thirdary,
+            borderRadius: 20,
+            padding: 18,
+            marginBottom: 20,
+            borderWidth: 1,
+            borderColor: "rgba(255,255,255,0.05)",
+          }}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 14 }}>
+            <MaterialIcons name="speed" size={20} color={colors.accent} style={{ marginRight: 8 }} />
+            <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: "700" }}>Шкала сложности</Text>
+          </View>
+
+          <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 8 }}>
+            <Text style={{ color: colors.textSecondary, fontSize: 12 }}>Легко</Text>
+            <Text style={{ color: colors.textSecondary, fontSize: 12 }}>Тяжело</Text>
+          </View>
+
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
             {SCALE_VALUES.map((value) => {
               const selected = value === difficulty;
               return (
@@ -110,27 +149,34 @@ export default function TrainingFeedback() {
               );
             })}
           </View>
-
-          <Text style={{ color: colors.textSecondary, fontSize: 15, lineHeight: 22, marginTop: 14 }}>{hint}</Text>
         </View>
 
-        {error ? <Text style={{ color: "#FF8A80", marginBottom: 14 }}>{error}</Text> : null}
-        {isSubmitting ? <ActivityIndicator color={colors.accent} style={{ marginBottom: 14 }} /> : null}
+        {error ? (
+          <View style={{ backgroundColor: "#FF8A8022", padding: 12, borderRadius: 14, marginBottom: 16 }}>
+            <Text style={{ color: "#FF8A80", textAlign: "center" }}>{error}</Text>
+          </View>
+        ) : null}
 
         <TouchableOpacity
           activeOpacity={0.85}
           onPress={() => void handleFinish()}
           disabled={isSubmitting}
           style={{
-            paddingVertical: 12,
-            borderRadius: 14,
+            height: 52,
+            borderRadius: 16,
             backgroundColor: colors.accent,
+            flexDirection: "row",
             justifyContent: "center",
             alignItems: "center",
             opacity: isSubmitting ? 0.7 : 1,
           }}
         >
-          <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: "700" }}>Закончить тренировку</Text>
+          {isSubmitting ? (
+            <ActivityIndicator color="#FFFFFF" style={{ marginRight: 8 }} />
+          ) : (
+            <MaterialIcons name="check" size={22} color="#FFFFFF" style={{ marginRight: 8 }} />
+          )}
+          <Text style={{ color: "#FFFFFF", fontSize: 16, fontWeight: "700" }}>Завершить тренировку</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>

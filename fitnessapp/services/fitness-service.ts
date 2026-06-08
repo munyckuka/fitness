@@ -23,6 +23,7 @@ export type WorkoutSummary = {
   level: string;
   durationMinutes: number;
   exercises: WorkoutExercise[];
+  splitPart?: string;
 };
 
 export type UserProfile = {
@@ -242,6 +243,7 @@ function normalizeWorkout(payload: BackendWorkout, user?: Pick<UserProfile, "goa
     level: user?.experience ?? "По вашему уровню",
     durationMinutes: Math.max(exercises.length * 8, 30),
     exercises,
+    splitPart: payload.splitPart,
   };
 }
 

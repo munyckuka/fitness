@@ -11,172 +11,56 @@ import {
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { deleteWorkout, type WorkoutSummary } from "@/services/fitness-service";
+import { deleteWorkout, type WorkoutSummary, type ExerciseSearchResult } from "@/services/fitness-service";
 import { getStoredUserId, setStoredWorkoutId } from "@/services/session-service";
 import { getWorkoutsOfflineFirst } from "@/services/workout-cache";
+import { searchExercisesOfflineFirst } from "@/services/exercise-cache";
 import { colors } from "./theme";
 
-const LIBRARY_CATEGORIES = [
-  {
-    title: "Бицепс",
-    items: [
-      {
-        name: "Подъем штанги на бицепс",
-        imageUri: "https://images.pexels.com/photos/1552249/pexels-photo-1552249.jpeg?auto=compress&cs=tinysrgb&w=600",
-      },
-      {
-        name: "Сгибания с гантелями",
-        imageUri: "https://images.pexels.com/photos/416717/pexels-photo-416717.jpeg?auto=compress&cs=tinysrgb&w=600",
-      },
-      {
-        name: "Молотки стоя",
-        imageUri: "https://images.pexels.com/photos/1229356/pexels-photo-1229356.jpeg?auto=compress&cs=tinysrgb&w=600",
-      },
-    ],
-  },
-  {
-    title: "Трицепс",
-    items: [
-      {
-        name: "Французский жим",
-        imageUri: "https://images.pexels.com/photos/2294361/pexels-photo-2294361.jpeg?auto=compress&cs=tinysrgb&w=600",
-      },
-      {
-        name: "Разгибание на блоке",
-        imageUri: "https://images.pexels.com/photos/1431282/pexels-photo-1431282.jpeg?auto=compress&cs=tinysrgb&w=600",
-      },
-      {
-        name: "Отжимания узким хватом",
-        imageUri: "https://images.pexels.com/photos/4761779/pexels-photo-4761779.jpeg?auto=compress&cs=tinysrgb&w=600",
-      },
-    ],
-  },
-  {
-    title: "Грудь",
-    items: [
-      {
-        name: "Жим лежа",
-        imageUri: "https://images.pexels.com/photos/1954524/pexels-photo-1954524.jpeg?auto=compress&cs=tinysrgb&w=600",
-      },
-      {
-        name: "Разводка с гантелями",
-        imageUri: "https://images.pexels.com/photos/949129/pexels-photo-949129.jpeg?auto=compress&cs=tinysrgb&w=600",
-      },
-      {
-        name: "Отжимания на брусьях",
-        imageUri: "https://images.pexels.com/photos/1954524/pexels-photo-1954524.jpeg?auto=compress&cs=tinysrgb&w=600",
-      },
-    ],
-  },
-  {
-    title: "Плечи",
-    items: [
-      {
-        name: "Жим гантелей сидя",
-        imageUri: "https://images.pexels.com/photos/841130/pexels-photo-841130.jpeg?auto=compress&cs=tinysrgb&w=600",
-      },
-      {
-        name: "Подъемы в стороны",
-        imageUri: "https://images.pexels.com/photos/949132/pexels-photo-949132.jpeg?auto=compress&cs=tinysrgb&w=600",
-      },
-      {
-        name: "Тяга к подбородку",
-        imageUri: "https://images.pexels.com/photos/5327534/pexels-photo-5327534.jpeg?auto=compress&cs=tinysrgb&w=600",
-      },
-    ],
-  },
-  {
-    title: "Спина",
-    items: [
-      {
-        name: "Подтягивания",
-        imageUri: "https://images.pexels.com/photos/414029/pexels-photo-414029.jpeg?auto=compress&cs=tinysrgb&w=600",
-      },
-      {
-        name: "Тяга штанги в наклоне",
-        imageUri: "https://images.pexels.com/photos/2294361/pexels-photo-2294361.jpeg?auto=compress&cs=tinysrgb&w=600",
-      },
-      {
-        name: "Тяга верхнего блока",
-        imageUri: "https://images.pexels.com/photos/841131/pexels-photo-841131.jpeg?auto=compress&cs=tinysrgb&w=600",
-      },
-    ],
-  },
-  {
-    title: "Ягодицы",
-    items: [
-      {
-        name: "Ягодичный мост",
-        imageUri: "https://images.pexels.com/photos/3757957/pexels-photo-3757957.jpeg?auto=compress&cs=tinysrgb&w=600",
-      },
-      {
-        name: "Выпады назад",
-        imageUri: "https://images.pexels.com/photos/6456305/pexels-photo-6456305.jpeg?auto=compress&cs=tinysrgb&w=600",
-      },
-      {
-        name: "Румынская тяга",
-        imageUri: "https://images.pexels.com/photos/6456217/pexels-photo-6456217.jpeg?auto=compress&cs=tinysrgb&w=600",
-      },
-    ],
-  },
-  {
-    title: "Квадрицепс",
-    items: [
-      {
-        name: "Приседания",
-        imageUri: "https://images.pexels.com/photos/6456308/pexels-photo-6456308.jpeg?auto=compress&cs=tinysrgb&w=600",
-      },
-      {
-        name: "Жим ногами",
-        imageUri: "https://images.pexels.com/photos/4164761/pexels-photo-4164761.jpeg?auto=compress&cs=tinysrgb&w=600",
-      },
-      {
-        name: "Болгарские выпады",
-        imageUri: "https://images.pexels.com/photos/6456290/pexels-photo-6456290.jpeg?auto=compress&cs=tinysrgb&w=600",
-      },
-    ],
-  },
-  {
-    title: "Бицепс бедра",
-    items: [
-      {
-        name: "Сгибание ног лежа",
-        imageUri: "https://images.pexels.com/photos/6456211/pexels-photo-6456211.jpeg?auto=compress&cs=tinysrgb&w=600",
-      },
-      {
-        name: "Good Morning",
-        imageUri: "https://images.pexels.com/photos/6456226/pexels-photo-6456226.jpeg?auto=compress&cs=tinysrgb&w=600",
-      },
-      {
-        name: "Тяга на прямых ногах",
-        imageUri: "https://images.pexels.com/photos/6456302/pexels-photo-6456302.jpeg?auto=compress&cs=tinysrgb&w=600",
-      },
-    ],
-  },
-  {
-    title: "Пресс",
-    items: [
-      {
-        name: "Скручивания",
-        imageUri: "https://images.pexels.com/photos/6456143/pexels-photo-6456143.jpeg?auto=compress&cs=tinysrgb&w=600",
-      },
-      {
-        name: "Подъем ног в висе",
-        imageUri: "https://images.pexels.com/photos/4164764/pexels-photo-4164764.jpeg?auto=compress&cs=tinysrgb&w=600",
-      },
-      {
-        name: "Планка",
-        imageUri: "https://images.pexels.com/photos/416778/pexels-photo-416778.jpeg?auto=compress&cs=tinysrgb&w=600",
-      },
-    ],
-  },
-];
+const MUSCLE_ORDER = ["chest", "back", "shoulder", "bicep", "tricep", "legs", "glutes", "calves", "core", "full body"];
+const MUSCLE_LABEL: Record<string, string> = {
+  chest: "Грудь", back: "Спина", shoulder: "Плечи", bicep: "Бицепс",
+  tricep: "Трицепс", legs: "Ноги", glutes: "Ягодицы", calves: "Икры",
+  core: "Пресс", "full body": "Всё тело",
+};
+
+type LibraryCategory = { muscle: string; title: string; items: ExerciseSearchResult[] };
+
 
 export default function Workouts() {
   const router = useRouter();
   const [workouts, setWorkouts] = useState<WorkoutSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [library, setLibrary] = useState<LibraryCategory[]>([]);
+  const [isLibraryLoading, setIsLibraryLoading] = useState(true);
+
+  // Load library from API, fall back to placeholder if unavailable
+  useEffect(() => {
+    let isMounted = true;
+    const load = async () => {
+      try {
+        const all = await searchExercisesOfflineFirst(undefined, undefined, 1000);
+        if (!isMounted) return;
+        const grouped: Record<string, ExerciseSearchResult[]> = {};
+        for (const ex of all) {
+          const key = ex.muscleGroup ?? "full body";
+          if (!grouped[key]) grouped[key] = [];
+          grouped[key].push(ex);
+        }
+        const categories: LibraryCategory[] = MUSCLE_ORDER
+          .filter((m) => grouped[m] && grouped[m].length > 0)
+          .map((m) => ({ muscle: m, title: MUSCLE_LABEL[m] ?? m, items: grouped[m] }));
+        if (isMounted) setLibrary(categories);
+      } catch {
+        // keep placeholder visible — no state change needed
+      } finally {
+        if (isMounted) setIsLibraryLoading(false);
+      }
+    };
+    void load();
+    return () => { isMounted = false; };
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -363,53 +247,7 @@ export default function Workouts() {
             <Text style={{ color: colors.textSecondary, marginBottom: 14 }}>Сервер пока не вернул ни одного плана.</Text>
           ) : null}
 
-          <View style={{ flexDirection: "row", gap: 12, marginTop: 14 }}>
-            <TouchableOpacity
-              activeOpacity={0.7}
-              style={{
-                flex: 1,
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "center",
-                paddingVertical: 12,
-                borderRadius: 14,
-                backgroundColor: colors.secondary,
-              }}
-            >
-              <MaterialIcons name="edit" size={18} color={colors.textSecondary} />
-              <Text style={{ color: colors.textSecondary, fontSize: 14, marginLeft: 8, fontWeight: "600" }}>
-                Изменить
-              </Text>
-            </TouchableOpacity>
 
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={() => (primaryWorkout ? handleOpenWorkout(primaryWorkout.id) : router.push("/create-workout"))}
-              style={{
-                flex: 1,
-                flexDirection: "row",
-                paddingVertical: 12,
-                borderRadius: 14,
-                backgroundColor: colors.accent,
-                justifyContent: "center",
-                alignItems: "center",
-              }}
-            >
-              <MaterialIcons name={primaryWorkout ? "play-arrow" : "add"} size={18} color="#FFFFFF" style={{ marginRight: 4 }} />
-              <Text style={{ color: "#FFFFFF", fontSize: 14, fontWeight: "700" }}>
-                {primaryWorkout ? "Начать" : "Создать"}
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          <TouchableOpacity
-            activeOpacity={0.85}
-            onPress={() => router.push({ pathname: "/generate-week" } as any)}
-            style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", marginTop: 12, paddingVertical: 12, borderRadius: 14, backgroundColor: colors.secondary }}
-          >
-            <MaterialIcons name="auto-awesome" size={18} color={colors.textPrimary} style={{ marginRight: 8 }} />
-            <Text style={{ color: colors.textPrimary, fontSize: 14, fontWeight: "600" }}>Сгенерировать неделю</Text>
-          </TouchableOpacity>
         </View>
 
         <TouchableOpacity
@@ -461,17 +299,21 @@ export default function Workouts() {
             <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: "700" }}>Библиотека упражнений</Text>
           </View>
 
-          {LIBRARY_CATEGORIES.map((category) => (
-            <View key={category.title} style={{ marginBottom: 18 }}>
+          {isLibraryLoading ? (
+            <ActivityIndicator color={colors.accent} style={{ marginVertical: 16 }} />
+          ) : null}
+
+          {library.map((category) => (
+            <View key={category.muscle} style={{ marginBottom: 18 }}>
               <Text style={{ color: colors.textPrimary, fontSize: 15, fontWeight: "600", marginBottom: 12 }}>
                 {category.title}
               </Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                {category.items.map((exercise, idx) => (
+                {category.items.map((exercise) => (
                   <TouchableOpacity
-                    key={`${category.title}-${idx}`}
+                    key={exercise.id}
                     activeOpacity={0.85}
-                    onPress={() => handleOpenExercise(exercise.name, category.title, exercise.imageUri)}
+                    onPress={() => handleOpenExercise(exercise.name, category.title, exercise.imageUri ?? "")}
                     style={{
                       width: 118,
                       borderRadius: 18,
@@ -480,7 +322,13 @@ export default function Workouts() {
                       overflow: "hidden",
                     }}
                   >
-                    <Image source={{ uri: exercise.imageUri }} style={{ width: "100%", height: 84 }} />
+                    {exercise.imageUri ? (
+                      <Image source={{ uri: exercise.imageUri }} style={{ width: "100%", height: 84 }} />
+                    ) : (
+                      <View style={{ width: "100%", height: 84, backgroundColor: `${colors.accent}22`, justifyContent: "center", alignItems: "center" }}>
+                        <MaterialIcons name="fitness-center" size={32} color={colors.accent} />
+                      </View>
+                    )}
                     <View style={{ paddingHorizontal: 10, paddingVertical: 10, minHeight: 64, justifyContent: "center" }}>
                       <Text style={{ color: colors.textPrimary, fontSize: 13, fontWeight: "600" }}>{exercise.name}</Text>
                     </View>

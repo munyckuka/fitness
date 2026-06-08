@@ -57,9 +57,9 @@ export default function WorkoutExerciseDetails() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background, paddingTop: 20 }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background, paddingTop: 30 }}>
       <ScrollView contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
-        <View style={{ paddingHorizontal: 20, marginBottom: 16, flexDirection: "row", alignItems: "center" }}>
+        <View style={{ paddingHorizontal: 20, marginBottom: 16, flexDirection: "row", alignItems: "center", marginTop: 30 }}>
           <TouchableOpacity
             activeOpacity={0.8}
             onPress={() => router.back()}
