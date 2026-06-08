@@ -72,7 +72,7 @@ export type CompleteWorkoutExerciseSetInput = {
 };
 
 export type CompleteWorkoutExerciseInput = {
-  exercise_id: string;
+  exerciseId: string;
   sets: CompleteWorkoutExerciseSetInput[];
 };
 

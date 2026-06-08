@@ -231,7 +231,7 @@ export default function TrainingExercise() {
           }
 
           return {
-            exercise_id: exercise.id,
+            exerciseId: exercise.id,
             sets,
           };
         })

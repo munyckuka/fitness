@@ -63,7 +63,7 @@ async function saveLocally(input: CompleteWorkoutInput): Promise<void> {
     await db.runAsync(
       `INSERT INTO exercise_logs (id, workout_log_id, exercise_id, rpe, form_quality, cycle)
        VALUES (?, ?, ?, ?, ?, ?)`,
-      [exerciseLogId, logId, exercise.exercise_id, null, null, null]
+      [exerciseLogId, logId, exercise.exerciseId, null, null, null]
     );
 
     for (const set of exercise.sets) {
