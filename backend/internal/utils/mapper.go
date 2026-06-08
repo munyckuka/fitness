@@ -136,6 +136,8 @@ func MapUpdateRequestToUser(req dto.UpdateUserRequest, existing domain.User) dom
 		existing.FitnessGoal = domain.GoalMass
 	case string(domain.GoalWeightLoss):
 		existing.FitnessGoal = domain.GoalWeightLoss
+	case string(domain.GoalEndurance):
+		existing.FitnessGoal = domain.GoalEndurance
 	default:
 		existing.FitnessGoal = domain.GoalStrength
 	}

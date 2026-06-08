@@ -8,6 +8,7 @@ const (
 	GoalStrength   Goal = "strength"
 	GoalMass       Goal = "mass"
 	GoalWeightLoss Goal = "weight_loss"
+	GoalEndurance  Goal = "endurance"
 )
 
 type User struct {
