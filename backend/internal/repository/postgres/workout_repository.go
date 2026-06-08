@@ -126,9 +126,17 @@ func (r *WorkoutRepository) Delete(ctx context.Context, workoutID string, userID
 		return err
 	}
 
-	if _, err = tx.ExecContext(ctx, `DELETE FROM workout_exercises WHERE workout_id = $1`, workoutID); err != nil {
-		tx.Rollback()
-		return err
+	steps := []string{
+		`DELETE FROM exercise_sets WHERE exercise_log_id IN (SELECT id FROM exercise_logs WHERE workout_log_id IN (SELECT id FROM workout_logs WHERE workout_id = $1))`,
+		`DELETE FROM exercise_logs WHERE workout_log_id IN (SELECT id FROM workout_logs WHERE workout_id = $1)`,
+		`DELETE FROM workout_logs WHERE workout_id = $1`,
+		`DELETE FROM workout_exercises WHERE workout_id = $1`,
+	}
+	for _, q := range steps {
+		if _, err = tx.ExecContext(ctx, q, workoutID); err != nil {
+			tx.Rollback()
+			return err
+		}
 	}
 
 	result, err := tx.ExecContext(ctx, `DELETE FROM workouts WHERE id = $1 AND user_id = $2`, workoutID, userID)
@@ -161,33 +169,21 @@ func (r *WorkoutRepository) DeletePendingInRange(ctx context.Context, userID str
 		return err
 	}
 
-	// Safe-to-delete: not completed AND has no workout_logs referencing it.
-	// This protects workouts whose status wasn't updated to 'completed'
-	// but already have a log (edge case from partial completion).
-	const safeToDelete = `
-		SELECT id FROM workouts
-		WHERE user_id = $1 AND planned_for >= $2 AND planned_for < $3
-		  AND status != 'completed'
-		  AND id NOT IN (
-			SELECT DISTINCT workout_id FROM workout_logs
-			WHERE workout_id IS NOT NULL
-		  )
-	`
+	// Target: all workouts for this user in the date range.
+	const target = `SELECT id FROM workouts WHERE user_id = $1 AND planned_for >= $2 AND planned_for < $3`
 
-	_, err = tx.ExecContext(ctx, `
-		DELETE FROM workout_exercises WHERE workout_id IN (`+safeToDelete+`)
-	`, parsedID, from, to)
-	if err != nil {
-		tx.Rollback()
-		return err
+	steps := []string{
+		`DELETE FROM exercise_sets WHERE exercise_log_id IN (SELECT id FROM exercise_logs WHERE workout_log_id IN (SELECT id FROM workout_logs WHERE workout_id IN (` + target + `)))`,
+		`DELETE FROM exercise_logs WHERE workout_log_id IN (SELECT id FROM workout_logs WHERE workout_id IN (` + target + `))`,
+		`DELETE FROM workout_logs WHERE workout_id IN (` + target + `)`,
+		`DELETE FROM workout_exercises WHERE workout_id IN (` + target + `)`,
+		`DELETE FROM workouts WHERE id IN (` + target + `)`,
 	}
-
-	_, err = tx.ExecContext(ctx, `
-		DELETE FROM workouts WHERE id IN (`+safeToDelete+`)
-	`, parsedID, from, to)
-	if err != nil {
-		tx.Rollback()
-		return err
+	for _, q := range steps {
+		if _, err = tx.ExecContext(ctx, q, parsedID, from, to); err != nil {
+			tx.Rollback()
+			return err
+		}
 	}
 
 	return tx.Commit()
