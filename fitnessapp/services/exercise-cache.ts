@@ -83,23 +83,38 @@ export async function cacheExercises(exercises: ExerciseSearchResult[]): Promise
 }
 
 // ---------------------------------------------------------------------------
-// Offline-first search
-// Tries API first; if offline, falls back to local SQLite search.
-// Caches API results for future offline use.
+// Cache-first search
+// Returns local SQLite data immediately (no spinner on revisit), then refreshes
+// the cache in the background and calls onFresh so the UI can update silently.
+// Falls back to API-first on the very first launch when the cache is empty.
 // ---------------------------------------------------------------------------
 
 export async function searchExercisesOfflineFirst(
   query?: string,
   muscle?: string,
-  limit = 50
+  limit = 50,
+  onFresh?: (fresh: ExerciseSearchResult[]) => void,
 ): Promise<ExerciseSearchResult[]> {
+  const cached = await searchCachedExercises(query, muscle, limit);
+
+  if (cached.length > 0) {
+    // Serve from cache immediately; refresh in background.
+    searchExercises(query, muscle, limit)
+      .then((fresh) => {
+        void cacheExercises(fresh);
+        onFresh?.(fresh);
+      })
+      .catch(() => {}); // network unavailable — cached data already returned
+    return cached;
+  }
+
+  // No cache yet (first launch) — must wait for API.
   try {
     const fresh = await searchExercises(query, muscle, limit);
     void cacheExercises(fresh);
     return fresh;
   } catch {
-    // API unavailable — search local cache.
-    return searchCachedExercises(query, muscle, limit);
+    return [];
   }
 }
 

@@ -1,6 +1,7 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { Image, SafeAreaView, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { SafeAreaView, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { Image } from "expo-image";
 import { colors } from "./theme";
 
 export default function WorkoutExerciseDetails() {
@@ -31,7 +32,7 @@ export default function WorkoutExerciseDetails() {
 
         <View style={{ marginHorizontal: 20, borderRadius: 24, overflow: "hidden", backgroundColor: colors.thirdary }}>
           {imageUri ? (
-            <Image source={{ uri: imageUri }} style={{ width: "100%", height: 260 }} resizeMode="cover" />
+            <Image source={{ uri: imageUri }} style={{ width: "100%", height: 260 }} contentFit="cover" />
           ) : (
             <View style={{ width: "100%", height: 260, backgroundColor: `${colors.accent}22`, justifyContent: "center", alignItems: "center" }}>
               <MaterialIcons name="fitness-center" size={64} color={colors.accent} />

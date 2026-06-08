@@ -1,13 +1,13 @@
 import {
   ActivityIndicator,
   Alert,
-  Image,
   SafeAreaView,
   ScrollView,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Image } from "expo-image";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
@@ -35,23 +35,34 @@ export default function Workouts() {
   const [library, setLibrary] = useState<LibraryCategory[]>([]);
   const [isLibraryLoading, setIsLibraryLoading] = useState(true);
 
-  // Load library from API, fall back to placeholder if unavailable
+  // Load library: cache-first so data appears instantly on revisit.
+  // Background refresh fires silently and updates the list without a spinner.
   useEffect(() => {
     let isMounted = true;
+
+    const applyExercises = (all: ExerciseSearchResult[]) => {
+      if (!isMounted || all.length === 0) return;
+      const grouped: Record<string, ExerciseSearchResult[]> = {};
+      for (const ex of all) {
+        const key = ex.muscleGroup ?? "full body";
+        if (!grouped[key]) grouped[key] = [];
+        grouped[key].push(ex);
+      }
+      const categories: LibraryCategory[] = MUSCLE_ORDER
+        .filter((m) => grouped[m] && grouped[m].length > 0)
+        .map((m) => ({ muscle: m, title: MUSCLE_LABEL[m] ?? m, items: grouped[m] }));
+      setLibrary(categories);
+    };
+
     const load = async () => {
       try {
-        const all = await searchExercisesOfflineFirst(undefined, undefined, 1000);
-        if (!isMounted) return;
-        const grouped: Record<string, ExerciseSearchResult[]> = {};
-        for (const ex of all) {
-          const key = ex.muscleGroup ?? "full body";
-          if (!grouped[key]) grouped[key] = [];
-          grouped[key].push(ex);
-        }
-        const categories: LibraryCategory[] = MUSCLE_ORDER
-          .filter((m) => grouped[m] && grouped[m].length > 0)
-          .map((m) => ({ muscle: m, title: MUSCLE_LABEL[m] ?? m, items: grouped[m] }));
-        if (isMounted) setLibrary(categories);
+        const data = await searchExercisesOfflineFirst(
+          undefined,
+          undefined,
+          1000,
+          (fresh) => applyExercises(fresh),   // silent background update
+        );
+        applyExercises(data);
       } catch {
         // keep placeholder visible — no state change needed
       } finally {
@@ -324,7 +335,7 @@ export default function Workouts() {
                     }}
                   >
                     {exercise.imageUri ? (
-                      <Image source={{ uri: exercise.imageUri }} style={{ width: "100%", height: 84 }} />
+                      <Image source={{ uri: exercise.imageUri }} style={{ width: "100%", height: 84 }} contentFit="cover" />
                     ) : (
                       <View style={{ width: "100%", height: 84, backgroundColor: `${colors.accent}22`, justifyContent: "center", alignItems: "center" }}>
                         <MaterialIcons name="fitness-center" size={32} color={colors.accent} />
