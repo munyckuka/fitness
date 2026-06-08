@@ -1,7 +1,7 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, Image, KeyboardAvoidingView, Modal, Platform, SafeAreaView, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Alert, KeyboardAvoidingView, Modal, Platform, SafeAreaView, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
 import {
   connectChatEvents,
   ensureDialog,
@@ -58,6 +58,15 @@ function getMonthGrid(year: number, month: number) {
   return weeks;
 }
 
+function getNameInitial(name?: string) {
+  const normalized = (name ?? "").trim().replace(/^@+/, "");
+  if (!normalized) {
+    return "?";
+  }
+
+  return normalized[0].toUpperCase();
+}
+
 function formatTime(hour: number, minute: number) {
   const h = String(hour).padStart(2, "0");
   const m = String(minute).padStart(2, "0");
@@ -68,7 +77,6 @@ export default function ChatScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ name?: string; avatar?: string; conversationId?: string; peerUserId?: string }>();
   const contactName = typeof params.name === "string" ? params.name : "Чат";
-  const avatar = typeof params.avatar === "string" && params.avatar.trim().length > 0 ? params.avatar : "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&h=200&fit=crop";
   const initialConversationId = typeof params.conversationId === "string" ? params.conversationId : "";
   const peerUserId = typeof params.peerUserId === "string" ? params.peerUserId : "";
 
@@ -423,11 +431,28 @@ export default function ChatScreen() {
             <MaterialIcons name="arrow-back-ios-new" size={20} color={colors.textPrimary} />
           </TouchableOpacity>
 
-          <Image source={{ uri: avatar }} style={{ width: 46, height: 46, borderRadius: 23, marginRight: 12 }} />
+          <View
+            style={{
+              width: 46,
+              height: 46,
+              borderRadius: 23,
+              marginRight: 12,
+              backgroundColor: colors.secondary,
+              borderWidth: 1,
+              borderColor: "rgba(255,255,255,0.08)",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Text style={{ color: colors.textPrimary, fontSize: 18, fontWeight: "700" }}>{getNameInitial(contactName)}</Text>
+          </View>
 
-          <View>
-            <Text style={{ color: colors.textPrimary, fontSize: 18, fontWeight: "700" }}>{contactName}</Text>
-            <Text style={{ color: colors.textSecondary, fontSize: 13, marginTop: 2 }}>был(а) в сети 2 мин назад</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: colors.textPrimary, fontSize: 18, fontWeight: "700" }} numberOfLines={1}>{contactName}</Text>
+            <View style={{ flexDirection: "row", alignItems: "center", marginTop: 3 }}>
+              <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: "#4CD964", marginRight: 6 }} />
+              <Text style={{ color: colors.textSecondary, fontSize: 13 }}>в сети</Text>
+            </View>
           </View>
         </View>
 
@@ -457,7 +482,12 @@ export default function ChatScreen() {
         {isLoadingMessages ? <Text style={{ color: colors.textSecondary, fontSize: 14, textAlign: "center" }}>Загрузка сообщений...</Text> : null}
 
         {!isLoadingMessages && messages.length === 0 ? (
-          <Text style={{ color: colors.textSecondary, fontSize: 14, textAlign: "center" }}>Сообщений пока нет.</Text>
+          <View style={{ alignItems: "center", paddingVertical: 40 }}>
+            <MaterialIcons name="chat-bubble-outline" size={44} color={colors.textSecondary} />
+            <Text style={{ color: colors.textSecondary, fontSize: 14, textAlign: "center", marginTop: 12 }}>
+              Сообщений пока нет.{"\n"}Начните диалог первым!
+            </Text>
+          </View>
         ) : null}
 
         {messages.map((message: ChatMessage) => {
@@ -492,13 +522,51 @@ export default function ChatScreen() {
               >
                 {message.kind === "shared_workout" ? (
                   <>
-                    <Text style={{ color: colors.textSecondary, fontSize: 12, marginBottom: 5 }}>Поделился тренировкой</Text>
+                    <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}>
+                      <MaterialIcons
+                        name="fitness-center"
+                        size={15}
+                        color={isMine ? "rgba(255,255,255,0.85)" : colors.accent}
+                        style={{ marginRight: 6 }}
+                      />
+                      <Text style={{ color: isMine ? "rgba(255,255,255,0.85)" : colors.textSecondary, fontSize: 12, fontWeight: "600" }}>
+                        Тренировка
+                      </Text>
+                    </View>
                     <Text style={{ color: colors.textPrimary, fontSize: 15, lineHeight: 21, fontWeight: "700" }}>{message.text}</Text>
-                    <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 6 }}>Нажмите, чтобы открыть детали</Text>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        marginTop: 10,
+                        paddingTop: 10,
+                        borderTopWidth: 1,
+                        borderTopColor: isMine ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.08)",
+                      }}
+                    >
+                      <Text style={{ color: isMine ? "rgba(255,255,255,0.85)" : colors.accent, fontSize: 13, fontWeight: "600" }}>
+                        Открыть детали
+                      </Text>
+                      <MaterialIcons
+                        name="chevron-right"
+                        size={18}
+                        color={isMine ? "rgba(255,255,255,0.85)" : colors.accent}
+                      />
+                    </View>
                   </>
                 ) : message.kind === "assigned_workout" ? (
                   <>
-                    <Text style={{ color: colors.textSecondary, fontSize: 12, marginBottom: 5 }}>Назначение тренировки</Text>
+                    <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}>
+                      <MaterialIcons
+                        name="event-available"
+                        size={15}
+                        color={isMine ? "rgba(255,255,255,0.85)" : colors.accent}
+                        style={{ marginRight: 6 }}
+                      />
+                      <Text style={{ color: isMine ? "rgba(255,255,255,0.85)" : colors.textSecondary, fontSize: 12, fontWeight: "600" }}>
+                        Назначение тренировки
+                      </Text>
+                    </View>
                     <Text style={{ color: colors.textPrimary, fontSize: 15, lineHeight: 21, fontWeight: "700" }}>{message.text}</Text>
                   </>
                 ) : (
@@ -585,17 +653,25 @@ export default function ChatScreen() {
             <TouchableOpacity
               activeOpacity={0.85}
               onPress={openShareWorkout}
-              style={{ backgroundColor: "rgba(255,255,255,0.05)", borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14, marginBottom: 10 }}
+              style={{ flexDirection: "row", alignItems: "center", backgroundColor: colors.secondary, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 14, marginBottom: 10 }}
             >
-              <Text style={{ color: colors.textPrimary, fontSize: 15, fontWeight: "600" }}>Поделиться тренировкой</Text>
+              <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: `${colors.accent}22`, alignItems: "center", justifyContent: "center", marginRight: 12 }}>
+                <MaterialIcons name="fitness-center" size={20} color={colors.accent} />
+              </View>
+              <Text style={{ color: colors.textPrimary, fontSize: 15, fontWeight: "600", flex: 1 }}>Поделиться тренировкой</Text>
+              <MaterialIcons name="chevron-right" size={22} color={colors.textSecondary} />
             </TouchableOpacity>
 
             <TouchableOpacity
               activeOpacity={0.85}
               onPress={openAssignWorkout}
-              style={{ backgroundColor: "rgba(255,255,255,0.05)", borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14 }}
+              style={{ flexDirection: "row", alignItems: "center", backgroundColor: colors.secondary, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 14 }}
             >
-              <Text style={{ color: colors.textPrimary, fontSize: 15, fontWeight: "600" }}>Назначить тренировку</Text>
+              <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: `${colors.accent}22`, alignItems: "center", justifyContent: "center", marginRight: 12 }}>
+                <MaterialIcons name="event-available" size={20} color={colors.accent} />
+              </View>
+              <Text style={{ color: colors.textPrimary, fontSize: 15, fontWeight: "600", flex: 1 }}>Назначить тренировку</Text>
+              <MaterialIcons name="chevron-right" size={22} color={colors.textSecondary} />
             </TouchableOpacity>
           </TouchableOpacity>
         </TouchableOpacity>

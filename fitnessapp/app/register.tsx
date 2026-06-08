@@ -1,12 +1,68 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useState } from "react";
-import { ActivityIndicator, SafeAreaView, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { useState, type ComponentProps } from "react";
+import { ActivityIndicator, KeyboardAvoidingView, Platform, SafeAreaView, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { getUser, getUserWorkouts, generateWorkout } from "@/services/fitness-service";
 import { loginWithIdentifier } from "@/services/auth-service";
 import { ApiError } from "@/services/api";
 import { CURRENT_WORKOUT_ID_KEY, IS_REGISTERED_KEY, USER_ID_KEY } from "@/services/storage";
 import { colors } from "./theme";
+
+function AuthField({
+  icon,
+  secure,
+  value,
+  onChangeText,
+  placeholder,
+  keyboardType,
+  autoCapitalize,
+}: {
+  icon: ComponentProps<typeof MaterialIcons>["name"];
+  secure?: boolean;
+  value: string;
+  onChangeText: (value: string) => void;
+  placeholder: string;
+  keyboardType?: ComponentProps<typeof TextInput>["keyboardType"];
+  autoCapitalize?: ComponentProps<typeof TextInput>["autoCapitalize"];
+}) {
+  const [hidden, setHidden] = useState(Boolean(secure));
+
+  return (
+    <View
+      style={{
+        width: "100%",
+        flexDirection: "row",
+        alignItems: "center",
+        height: 54,
+        borderRadius: 14,
+        backgroundColor: colors.thirdary,
+        borderWidth: 1,
+        borderColor: "rgba(255,255,255,0.06)",
+        paddingHorizontal: 14,
+        marginBottom: 14,
+      }}
+    >
+      <MaterialIcons name={icon} size={20} color={colors.textSecondary} style={{ marginRight: 10 }} />
+      <TextInput
+        value={value}
+        onChangeText={onChangeText}
+        secureTextEntry={hidden}
+        autoCapitalize={autoCapitalize ?? "none"}
+        autoCorrect={false}
+        keyboardType={keyboardType}
+        placeholder={placeholder}
+        placeholderTextColor={colors.textSecondary}
+        style={{ flex: 1, color: colors.textPrimary, fontSize: 16 }}
+      />
+      {secure ? (
+        <TouchableOpacity activeOpacity={0.7} onPress={() => setHidden((current) => !current)} style={{ padding: 4 }}>
+          <MaterialIcons name={hidden ? "visibility-off" : "visibility"} size={20} color={colors.textSecondary} />
+        </TouchableOpacity>
+      ) : null}
+    </View>
+  );
+}
 
 export default function Register() {
   const router = useRouter();
@@ -17,6 +73,7 @@ export default function Register() {
   const [registerLogin, setRegisterLogin] = useState("");
   const [registerEmail, setRegisterEmail] = useState("");
   const [registerPassword, setRegisterPassword] = useState("");
+  const [registerPasswordConfirm, setRegisterPasswordConfirm] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -43,6 +100,11 @@ export default function Register() {
 
     if (pwd.length < 8) {
       setSubmitError("Пароль должен быть не короче 8 символов.");
+      return;
+    }
+
+    if (pwd !== registerPasswordConfirm.trim()) {
+      setSubmitError("Пароли не совпадают.");
       return;
     }
 
@@ -113,213 +175,155 @@ export default function Register() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-      <View style={{ flex: 1, justifyContent: "flex-start", alignItems: "center", paddingHorizontal: 24, paddingTop: 60 }}>
-        <Text style={{ color: colors.textPrimary, fontSize: 48, fontWeight: "500", textAlign: "center", marginBottom: 18 }}>
-          Вход/Регистрация
-        </Text>
-
-
-        <View style={{ width: "100%", flexDirection: "row", gap: 10, marginBottom: 20 }}>
-          <TouchableOpacity
-            activeOpacity={0.85}
-            onPress={() => {
-              setMode("login");
-              setSubmitError(null);
-            }}
-            style={{
-              flex: 1,
-              height: 44,
-              borderRadius: 12,
-              backgroundColor: mode === "login" ? colors.accent : colors.thirdary,
-              justifyContent: "center",
-              alignItems: "center",
-            }}
-          >
-            <Text style={{ color: colors.textPrimary, fontSize: 15, fontWeight: "600" }}>Вход</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            activeOpacity={0.85}
-            onPress={() => {
-              setMode("register");
-              setSubmitError(null);
-            }}
-            style={{
-              flex: 1,
-              height: 44,
-              borderRadius: 12,
-              backgroundColor: mode === "register" ? colors.accent : colors.thirdary,
-              justifyContent: "center",
-              alignItems: "center",
-            }}
-          >
-            <Text style={{ color: colors.textPrimary, fontSize: 15, fontWeight: "600" }}>Регистрация</Text>
-          </TouchableOpacity>
-        </View>
-
-        {mode === "login" ? (
-          <>
-            <TextInput
-              value={identifier}
-              onChangeText={setIdentifier}
-              autoCapitalize="none"
-              autoCorrect={false}
-              placeholder="Почта или логин"
-              placeholderTextColor="#999"
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+      >
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1, justifyContent: "center", paddingHorizontal: 24, paddingVertical: 40 }}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Logo / Title */}
+          <View style={{ alignItems: "center", marginBottom: 32 }}>
+            <View
               style={{
-                width: "100%",
-                height: 52,
-                borderRadius: 14,
-                backgroundColor: "#FFFFFF",
-                paddingHorizontal: 14,
-                color: "#000000",
-                fontSize: 16,
-                marginBottom: 14,
-              }}
-            />
-
-            <TextInput
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              autoCapitalize="none"
-              autoCorrect={false}
-              placeholder="Пароль (для legacy можно оставить пустым)"
-              placeholderTextColor="#999"
-              style={{
-                width: "100%",
-                height: 52,
-                borderRadius: 14,
-                backgroundColor: "#FFFFFF",
-                paddingHorizontal: 14,
-                color: "#000000",
-                fontSize: 16,
-                marginBottom: 14,
-              }}
-            />
-
-            <TouchableOpacity
-              activeOpacity={0.85}
-              onPress={handleLogin}
-              disabled={isSubmitting}
-              style={{
-                width: "100%",
-                height: 56,
-                borderRadius: 16,
-                backgroundColor: "#FFFFFF",
-                justifyContent: "center",
+                width: 80,
+                height: 80,
+                borderRadius: 24,
+                backgroundColor: colors.accent,
                 alignItems: "center",
-                opacity: isSubmitting ? 0.7 : 1,
+                justifyContent: "center",
+                marginBottom: 16,
               }}
             >
-              {isSubmitting ? (
-                <ActivityIndicator color="#000000" />
-              ) : (
-                <Text style={{ color: "#000000", fontSize: 18, fontWeight: "500" }}>Войти</Text>
-              )}
-            </TouchableOpacity>
-          </>
-        ) : (
-          <>
-            <TextInput
-              value={registerName}
-              onChangeText={setRegisterName}
-              autoCapitalize="words"
-              autoCorrect={false}
-              placeholder="Имя"
-              placeholderTextColor="#999"
-              style={{
-                width: "100%",
-                height: 52,
-                borderRadius: 14,
-                backgroundColor: "#FFFFFF",
-                paddingHorizontal: 14,
-                color: "#000000",
-                fontSize: 16,
-                marginBottom: 14,
-              }}
-            />
+              <MaterialIcons name="fitness-center" size={40} color="#FFFFFF" />
+            </View>
+            <Text style={{ color: colors.textPrimary, fontSize: 28, fontWeight: "700" }}>
+              {mode === "login" ? "С возвращением!" : "Создайте аккаунт"}
+            </Text>
+            <Text style={{ color: colors.textSecondary, fontSize: 15, marginTop: 6, textAlign: "center" }}>
+              {mode === "login" ? "Войдите, чтобы продолжить тренировки" : "Начните свой путь к лучшей форме"}
+            </Text>
+          </View>
 
-            <TextInput
-              value={registerEmail}
-              onChangeText={setRegisterEmail}
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType="email-address"
-              placeholder="Почта"
-              placeholderTextColor="#999"
-              style={{
-                width: "100%",
-                height: 52,
-                borderRadius: 14,
-                backgroundColor: "#FFFFFF",
-                paddingHorizontal: 14,
-                color: "#000000",
-                fontSize: 16,
-                marginBottom: 14,
-              }}
-            />
-
-            <TextInput
-              value={registerLogin}
-              onChangeText={setRegisterLogin}
-              autoCapitalize="none"
-              autoCorrect={false}
-              placeholder="Логин"
-              placeholderTextColor="#999"
-              style={{
-                width: "100%",
-                height: 52,
-                borderRadius: 14,
-                backgroundColor: "#FFFFFF",
-                paddingHorizontal: 14,
-                color: "#000000",
-                fontSize: 16,
-                marginBottom: 14,
-              }}
-            />
-
-            <TextInput
-              value={registerPassword}
-              onChangeText={setRegisterPassword}
-              secureTextEntry
-              autoCapitalize="none"
-              autoCorrect={false}
-              placeholder="Пароль"
-              placeholderTextColor="#999"
-              style={{
-                width: "100%",
-                height: 52,
-                borderRadius: 14,
-                backgroundColor: "#FFFFFF",
-                paddingHorizontal: 14,
-                color: "#000000",
-                fontSize: 16,
-                marginBottom: 14,
-              }}
-            />
-
+          {/* Segmented toggle */}
+          <View
+            style={{
+              flexDirection: "row",
+              backgroundColor: colors.thirdary,
+              borderRadius: 14,
+              padding: 4,
+              marginBottom: 24,
+              borderWidth: 1,
+              borderColor: "rgba(255,255,255,0.06)",
+            }}
+          >
             <TouchableOpacity
               activeOpacity={0.85}
-              onPress={handleRegistrationStart}
+              onPress={() => {
+                setMode("login");
+                setSubmitError(null);
+              }}
               style={{
-                width: "100%",
-                height: 56,
-                borderRadius: 16,
-                backgroundColor: "#FFFFFF",
+                flex: 1,
+                height: 42,
+                borderRadius: 10,
+                backgroundColor: mode === "login" ? colors.accent : "transparent",
                 justifyContent: "center",
                 alignItems: "center",
               }}
             >
-              <Text style={{ color: "#000000", fontSize: 18, fontWeight: "500" }}>Продолжить</Text>
+              <Text style={{ color: mode === "login" ? "#FFFFFF" : colors.textSecondary, fontSize: 15, fontWeight: "700" }}>Вход</Text>
             </TouchableOpacity>
-          </>
-        )}
 
-        {submitError ? (
-          <Text style={{ color: "#FF8A80", fontSize: 14, marginTop: 12, textAlign: "center" }}>{submitError}</Text>
-        ) : null}
-      </View>
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => {
+                setMode("register");
+                setSubmitError(null);
+              }}
+              style={{
+                flex: 1,
+                height: 42,
+                borderRadius: 10,
+                backgroundColor: mode === "register" ? colors.accent : "transparent",
+                justifyContent: "center",
+                alignItems: "center",
+              }}
+            >
+              <Text style={{ color: mode === "register" ? "#FFFFFF" : colors.textSecondary, fontSize: 15, fontWeight: "700" }}>Регистрация</Text>
+            </TouchableOpacity>
+          </View>
+
+          {mode === "login" ? (
+            <>
+              <AuthField icon="alternate-email" value={identifier} onChangeText={setIdentifier} placeholder="Почта или логин" />
+              <AuthField icon="lock" secure value={password} onChangeText={setPassword} placeholder="Пароль" />
+
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={handleLogin}
+                disabled={isSubmitting}
+                style={{
+                  width: "100%",
+                  height: 56,
+                  borderRadius: 16,
+                  backgroundColor: colors.accent,
+                  flexDirection: "row",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  marginTop: 4,
+                  opacity: isSubmitting ? 0.7 : 1,
+                }}
+              >
+                {isSubmitting ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <>
+                    <MaterialIcons name="login" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
+                    <Text style={{ color: "#FFFFFF", fontSize: 17, fontWeight: "700" }}>Войти</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              <AuthField icon="person" autoCapitalize="words" value={registerName} onChangeText={setRegisterName} placeholder="Имя" />
+              <AuthField icon="mail" keyboardType="email-address" value={registerEmail} onChangeText={setRegisterEmail} placeholder="Почта" />
+              <AuthField icon="alternate-email" value={registerLogin} onChangeText={setRegisterLogin} placeholder="Логин" />
+              <AuthField icon="lock" secure value={registerPassword} onChangeText={setRegisterPassword} placeholder="Пароль" />
+              <AuthField icon="lock-outline" secure value={registerPasswordConfirm} onChangeText={setRegisterPasswordConfirm} placeholder="Подтвердите пароль" />
+
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={handleRegistrationStart}
+                style={{
+                  width: "100%",
+                  height: 56,
+                  borderRadius: 16,
+                  backgroundColor: colors.accent,
+                  flexDirection: "row",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  marginTop: 4,
+                }}
+              >
+                <Text style={{ color: "#FFFFFF", fontSize: 17, fontWeight: "700", marginRight: 6 }}>Продолжить</Text>
+                <MaterialIcons name="arrow-forward" size={20} color="#FFFFFF" />
+              </TouchableOpacity>
+            </>
+          )}
+
+          {submitError ? (
+            <View style={{ backgroundColor: "#FF8A8022", padding: 12, borderRadius: 14, marginTop: 16 }}>
+              <Text style={{ color: "#FF8A80", fontSize: 14, textAlign: "center" }}>{submitError}</Text>
+            </View>
+          ) : null}
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

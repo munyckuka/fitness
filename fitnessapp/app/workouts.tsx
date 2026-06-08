@@ -239,42 +239,80 @@ export default function Workouts() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background, paddingTop: 20 }}>
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 140 }}>
-        <Text style={{ color: colors.textPrimary, fontSize: 28, fontWeight: "700", marginBottom: 18 }}>
+        <Text style={{ color: colors.textPrimary, fontSize: 28, fontWeight: "700", marginTop: 6 }}>
           Тренировки
         </Text>
+        <Text style={{ color: colors.textSecondary, fontSize: 15, marginTop: 4, marginBottom: 20 }}>
+          Ваши планы и библиотека упражнений
+        </Text>
 
-        <View style={{ backgroundColor: colors.thirdary, borderRadius: 20, padding: 18, marginBottom: 18 }}>
-          <Text style={{ color: colors.textPrimary, fontSize: 18, fontWeight: "700", marginBottom: 16 }}>
-            Мой план тренировок:
-          </Text>
+        <View
+          style={{
+            backgroundColor: colors.thirdary,
+            borderRadius: 20,
+            padding: 18,
+            marginBottom: 16,
+            borderWidth: 1,
+            borderColor: "rgba(255,255,255,0.05)",
+          }}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 16 }}>
+            <MaterialIcons name="assignment" size={20} color={colors.accent} style={{ marginRight: 8 }} />
+            <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: "700" }}>Мой план тренировок</Text>
+          </View>
 
           {isLoading ? <ActivityIndicator color={colors.accent} /> : null}
-          {error ? <Text style={{ color: "#FF8A80", marginBottom: 14 }}>{error}</Text> : null}
+          {error ? (
+            <View style={{ backgroundColor: "#FF8A8022", padding: 10, borderRadius: 12, marginBottom: 14 }}>
+              <Text style={{ color: "#FF8A80", textAlign: "center" }}>{error}</Text>
+            </View>
+          ) : null}
 
-          {workouts.map((item) => (
+          {workouts.map((item, index) => (
             <TouchableOpacity
               key={item.id}
               activeOpacity={0.85}
               onPress={() => handleOpenWorkout(item.id)}
-              style={{ flexDirection: "row", alignItems: "center", marginBottom: 14 }}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                paddingVertical: 14,
+                borderTopWidth: index === 0 ? 0 : 1,
+                borderTopColor: "rgba(255,255,255,0.05)",
+              }}
             >
+              <View
+                style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: 14,
+                  backgroundColor: `${colors.accent}22`,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginRight: 14,
+                }}
+              >
+                <MaterialIcons name="fitness-center" size={24} color={colors.accent} />
+              </View>
+
               <View style={{ flex: 1 }}>
-                <Text style={{ color: colors.textPrimary, fontSize: 18, fontWeight: "700" }}>{item.title}</Text>
-                <Text style={{ color: colors.textSecondary, fontSize: 14, marginTop: 4 }}>
+                <Text style={{ color: colors.textPrimary, fontSize: 17, fontWeight: "700" }}>{item.title}</Text>
+                <Text style={{ color: colors.textSecondary, fontSize: 14, marginTop: 4 }} numberOfLines={1}>
                   {item.goal}, {item.equipment}, {item.exercises.length} упражнений
                 </Text>
               </View>
 
               <View
                 style={{
-                  width: 64,
-                  height: 64,
+                  width: 36,
+                  height: 36,
                   borderRadius: 18,
-                  overflow: "hidden",
-                  backgroundColor: colors.secondary,
+                  backgroundColor: colors.accent,
+                  alignItems: "center",
+                  justifyContent: "center",
                 }}
               >
-                {item.exercises[0]?.imageUri ? <Image source={{ uri: item.exercises[0].imageUri }} style={{ width: "100%", height: "100%" }} /> : null}
+                <MaterialIcons name="play-arrow" size={22} color="#FFFFFF" />
               </View>
             </TouchableOpacity>
           ))}
@@ -283,7 +321,7 @@ export default function Workouts() {
             <Text style={{ color: colors.textSecondary, marginBottom: 14 }}>Сервер пока не вернул ни одного плана.</Text>
           ) : null}
 
-          <View style={{ flexDirection: "row", gap: 12, marginTop: 10 }}>
+          <View style={{ flexDirection: "row", gap: 12, marginTop: 14 }}>
             <TouchableOpacity
               activeOpacity={0.7}
               style={{
@@ -291,13 +329,13 @@ export default function Workouts() {
                 flexDirection: "row",
                 alignItems: "center",
                 justifyContent: "center",
-                paddingVertical: 10,
+                paddingVertical: 12,
                 borderRadius: 14,
-                backgroundColor: "rgba(255,255,255,0.08)",
+                backgroundColor: colors.secondary,
               }}
             >
               <MaterialIcons name="edit" size={18} color={colors.textSecondary} />
-              <Text style={{ color: colors.textSecondary, fontSize: 14, marginLeft: 8 }}>
+              <Text style={{ color: colors.textSecondary, fontSize: 14, marginLeft: 8, fontWeight: "600" }}>
                 Изменить
               </Text>
             </TouchableOpacity>
@@ -307,59 +345,83 @@ export default function Workouts() {
               onPress={() => (primaryWorkout ? handleOpenWorkout(primaryWorkout.id) : router.push("/create-workout"))}
               style={{
                 flex: 1,
-                paddingVertical: 10,
+                flexDirection: "row",
+                paddingVertical: 12,
                 borderRadius: 14,
                 backgroundColor: colors.accent,
                 justifyContent: "center",
                 alignItems: "center",
               }}
             >
-              <Text style={{ color: colors.textPrimary, fontSize: 14, fontWeight: "700" }}>
-                {primaryWorkout ? "Начать тренировку" : "Создать план"}
+              <MaterialIcons name={primaryWorkout ? "play-arrow" : "add"} size={18} color="#FFFFFF" style={{ marginRight: 4 }} />
+              <Text style={{ color: "#FFFFFF", fontSize: 14, fontWeight: "700" }}>
+                {primaryWorkout ? "Начать" : "Создать"}
               </Text>
             </TouchableOpacity>
           </View>
-          <View style={{ marginTop: 12 }}>
-            <TouchableOpacity
-              activeOpacity={0.85}
-              onPress={() => router.push({ pathname: "/generate-week" } as any)}
-              style={{ alignItems: "center", paddingVertical: 10, borderRadius: 12, backgroundColor: colors.secondary }}
-            >
-              <Text style={{ color: colors.textPrimary, fontSize: 14, fontWeight: "600" }}>Сгенерировать неделю</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        <View style={{ backgroundColor: colors.thirdary, borderRadius: 20, padding: 18, marginBottom: 18 }}>
-          <Text style={{ color: colors.textPrimary, fontSize: 18, fontWeight: "700", marginBottom: 14 }}>
-            Нужна новая тренировка?
-          </Text>
 
           <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={() => router.push("/create-workout")}
-            style={{
-              alignItems: "center",
-              paddingHorizontal: 18,
-              paddingVertical: 10,
-              borderRadius: 14,
-              backgroundColor: colors.secondary,
-            }}
+            activeOpacity={0.85}
+            onPress={() => router.push({ pathname: "/generate-week" } as any)}
+            style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", marginTop: 12, paddingVertical: 12, borderRadius: 14, backgroundColor: colors.secondary }}
           >
-            <Text style={{ color: colors.textPrimary, fontSize: 14, fontWeight: "600" }}>
-              Создать план тренировок
-            </Text>
+            <MaterialIcons name="auto-awesome" size={18} color={colors.textPrimary} style={{ marginRight: 8 }} />
+            <Text style={{ color: colors.textPrimary, fontSize: 14, fontWeight: "600" }}>Сгенерировать неделю</Text>
           </TouchableOpacity>
         </View>
 
-        <View style={{ backgroundColor: colors.thirdary, borderRadius: 20, padding: 18, marginBottom: 18 }}>
-          <Text style={{ color: colors.textPrimary, fontSize: 18, fontWeight: "700", marginBottom: 12 }}>
-            Библиотека упражнений
-          </Text>
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={() => router.push("/create-workout")}
+          style={{
+            backgroundColor: colors.thirdary,
+            borderRadius: 20,
+            padding: 18,
+            marginBottom: 16,
+            flexDirection: "row",
+            alignItems: "center",
+            borderWidth: 1,
+            borderColor: "rgba(255,255,255,0.05)",
+          }}
+        >
+          <View
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: 14,
+              backgroundColor: `${colors.accent}22`,
+              alignItems: "center",
+              justifyContent: "center",
+              marginRight: 14,
+            }}
+          >
+            <MaterialIcons name="add" size={26} color={colors.accent} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: "700" }}>Новая тренировка</Text>
+            <Text style={{ color: colors.textSecondary, fontSize: 13, marginTop: 2 }}>Создать свой план с нуля</Text>
+          </View>
+          <MaterialIcons name="chevron-right" size={24} color={colors.textSecondary} />
+        </TouchableOpacity>
+
+        <View
+          style={{
+            backgroundColor: colors.thirdary,
+            borderRadius: 20,
+            padding: 18,
+            marginBottom: 18,
+            borderWidth: 1,
+            borderColor: "rgba(255,255,255,0.05)",
+          }}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 14 }}>
+            <MaterialIcons name="menu-book" size={20} color={colors.accent} style={{ marginRight: 8 }} />
+            <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: "700" }}>Библиотека упражнений</Text>
+          </View>
 
           {LIBRARY_CATEGORIES.map((category) => (
             <View key={category.title} style={{ marginBottom: 18 }}>
-              <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: "600", marginBottom: 12 }}>
+              <Text style={{ color: colors.textPrimary, fontSize: 15, fontWeight: "600", marginBottom: 12 }}>
                 {category.title}
               </Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>

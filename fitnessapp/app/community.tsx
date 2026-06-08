@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { MaterialIcons } from "@expo/vector-icons";
 import { ActivityIndicator, SafeAreaView, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { useRouter } from "expo-router";
 import { getStoredUserId } from "@/services/session-service";
@@ -97,36 +98,61 @@ export default function Community() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background, paddingTop: 20 }}>
       <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 140 }} showsVerticalScrollIndicator={false}>
-        <Text style={{ color: colors.textPrimary, fontSize: 28, fontWeight: "600", marginTop: 26, marginBottom: 18 }}>
+        <Text style={{ color: colors.textPrimary, fontSize: 28, fontWeight: "700", marginTop: 26 }}>
           Сообщество
         </Text>
+        <Text style={{ color: colors.textSecondary, fontSize: 15, marginTop: 4, marginBottom: 20 }}>
+          Найдите единомышленников и начните общение
+        </Text>
 
-        <View style={{ backgroundColor: colors.thirdary, borderRadius: 20, padding: 16 }}>
-          <Text style={{ color: colors.textPrimary, fontSize: 20, fontWeight: "500", marginBottom: 10 }}>
-            Поиск по логину
-          </Text>
-          <Text style={{ color: colors.textSecondary, fontSize: 14, marginBottom: 12 }}>
-            Найдите пользователя и сразу начните переписку
-          </Text>
+        <View
+          style={{
+            backgroundColor: colors.thirdary,
+            borderRadius: 20,
+            padding: 16,
+            borderWidth: 1,
+            borderColor: "rgba(255,255,255,0.05)",
+          }}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 14 }}>
+            <MaterialIcons name="person-search" size={20} color={colors.accent} style={{ marginRight: 8 }} />
+            <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: "700" }}>Поиск по логину</Text>
+          </View>
 
           <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-            <TextInput
-              placeholder="Введите логин"
-              placeholderTextColor={colors.textSecondary}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              autoCapitalize="none"
-              autoCorrect={false}
+            <View
               style={{
                 flex: 1,
-                backgroundColor: colors.background,
-                color: colors.textPrimary,
+                flexDirection: "row",
+                alignItems: "center",
+                backgroundColor: colors.secondary,
                 borderRadius: 14,
-                paddingHorizontal: 14,
-                paddingVertical: 12,
-                fontSize: 15,
+                borderWidth: 1,
+                borderColor: "rgba(255,255,255,0.06)",
+                paddingHorizontal: 12,
               }}
-            />
+            >
+              <MaterialIcons name="alternate-email" size={18} color={colors.textSecondary} />
+              <TextInput
+                placeholder="Введите логин"
+                placeholderTextColor={colors.textSecondary}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                autoCapitalize="none"
+                autoCorrect={false}
+                onSubmitEditing={() => {
+                  void handleSearchUsers();
+                }}
+                returnKeyType="search"
+                style={{
+                  flex: 1,
+                  color: colors.textPrimary,
+                  paddingVertical: 12,
+                  paddingHorizontal: 8,
+                  fontSize: 15,
+                }}
+              />
+            </View>
 
             <TouchableOpacity
               activeOpacity={0.85}
@@ -136,16 +162,22 @@ export default function Community() {
               style={{
                 backgroundColor: colors.accent,
                 borderRadius: 14,
-                paddingHorizontal: 14,
-                paddingVertical: 12,
+                width: 48,
+                height: 48,
+                alignItems: "center",
+                justifyContent: "center",
               }}
             >
-              <Text style={{ color: colors.textPrimary, fontSize: 14, fontWeight: "700" }}>Найти</Text>
+              <MaterialIcons name="search" size={24} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
 
           {isSearchingUsers ? <ActivityIndicator color={colors.accent} style={{ marginTop: 12 }} /> : null}
-          {searchError ? <Text style={{ color: "#FF8A80", marginTop: 10 }}>{searchError}</Text> : null}
+          {searchError ? (
+            <View style={{ backgroundColor: "#FF8A8022", padding: 10, borderRadius: 12, marginTop: 12 }}>
+              <Text style={{ color: "#FF8A80", textAlign: "center" }}>{searchError}</Text>
+            </View>
+          ) : null}
 
           {searchResults.map((user: ChatUserSearchResult) => {
             const loginInitial = getLoginInitial(user.login);
@@ -168,7 +200,7 @@ export default function Community() {
                   marginTop: 12,
                   flexDirection: "row",
                   alignItems: "center",
-                  backgroundColor: "rgba(255,255,255,0.04)",
+                  backgroundColor: colors.secondary,
                   borderRadius: 14,
                   padding: 10,
                 }}
@@ -179,7 +211,9 @@ export default function Community() {
                     height: 46,
                     borderRadius: 23,
                     marginRight: 10,
-                    backgroundColor: colors.secondary,
+                    backgroundColor: colors.background,
+                    borderWidth: 1,
+                    borderColor: "rgba(255,255,255,0.08)",
                     alignItems: "center",
                     justifyContent: "center",
                   }}
@@ -190,32 +224,53 @@ export default function Community() {
                   <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: "600" }}>{user.name || "Пользователь"}</Text>
                   <Text style={{ color: colors.textSecondary, fontSize: 13, marginTop: 2 }}>@{user.login}</Text>
                 </View>
-                <View style={{ backgroundColor: colors.secondary, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6 }}>
-                  <Text style={{ color: colors.textPrimary, fontSize: 12, fontWeight: "600" }}>Написать</Text>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    backgroundColor: colors.accent,
+                    borderRadius: 12,
+                    paddingHorizontal: 12,
+                    paddingVertical: 8,
+                  }}
+                >
+                  <MaterialIcons name="chat-bubble-outline" size={14} color="#FFFFFF" style={{ marginRight: 4 }} />
+                  <Text style={{ color: "#FFFFFF", fontSize: 12, fontWeight: "700" }}>Написать</Text>
                 </View>
               </TouchableOpacity>
             );
           })}
 
           {!isSearchingUsers && searchQuery.trim().length > 0 && searchResults.length === 0 && !searchError ? (
-            <Text style={{ color: colors.textSecondary, marginTop: 10 }}>Пользователи не найдены.</Text>
+            <Text style={{ color: colors.textSecondary, marginTop: 12, textAlign: "center" }}>Пользователи не найдены.</Text>
           ) : null}
         </View>
 
-        <View style={{ backgroundColor: colors.thirdary, borderRadius: 20, padding: 18, marginTop: 16 }}>
-          <Text style={{ color: colors.textPrimary, fontSize: 20, fontWeight: "500", marginBottom: 14 }}>
-            Ваши чаты:
-          </Text>
+        <View
+          style={{
+            backgroundColor: colors.thirdary,
+            borderRadius: 20,
+            padding: 18,
+            marginTop: 16,
+            borderWidth: 1,
+            borderColor: "rgba(255,255,255,0.05)",
+          }}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 4 }}>
+            <MaterialIcons name="forum" size={20} color={colors.accent} style={{ marginRight: 8 }} />
+            <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: "700" }}>Ваши чаты</Text>
+          </View>
 
-
-
-          {isLoadingDialogs ? <ActivityIndicator color={colors.accent} style={{ marginTop: 14 }} /> : null}
+          {isLoadingDialogs ? <ActivityIndicator color={colors.accent} style={{ marginTop: 18 }} /> : null}
 
           {!isLoadingDialogs && chatItems.length === 0 ? (
-            <Text style={{ color: colors.textSecondary, marginTop: 14 }}>Пока нет активных чатов.</Text>
+            <View style={{ alignItems: "center", paddingVertical: 24 }}>
+              <MaterialIcons name="chat-bubble-outline" size={40} color={colors.textSecondary} />
+              <Text style={{ color: colors.textSecondary, marginTop: 10 }}>Пока нет активных чатов.</Text>
+            </View>
           ) : null}
 
-          {chatItems.map((chat: typeof chatItems[number]) => (
+          {chatItems.map((chat: typeof chatItems[number], index: number) => (
             <TouchableOpacity
               key={chat.key}
               activeOpacity={0.8}
@@ -233,30 +288,36 @@ export default function Community() {
               style={{
                 flexDirection: "row",
                 alignItems: "center",
-                marginTop: 14,
-                paddingVertical: 4,
+                paddingVertical: 14,
+                borderTopWidth: index === 0 ? 0 : 1,
+                borderTopColor: "rgba(255,255,255,0.05)",
               }}
             >
               <View
                 style={{
-                  width: 64,
-                  height: 64,
-                  borderRadius: 32,
+                  width: 58,
+                  height: 58,
+                  borderRadius: 29,
                   marginRight: 14,
-                  backgroundColor: colors.secondary,
+                  backgroundColor: colors.background,
+                  borderWidth: 1,
+                  borderColor: "rgba(255,255,255,0.08)",
                   alignItems: "center",
                   justifyContent: "center",
                 }}
               >
-                <Text style={{ color: colors.textPrimary, fontSize: 24, fontWeight: "700" }}>
+                <Text style={{ color: colors.textPrimary, fontSize: 22, fontWeight: "700" }}>
                   {getLoginInitial(chat.login)}
                 </Text>
               </View>
+
               <View style={{ flex: 1 }}>
-                <Text style={{ color: colors.textPrimary, fontSize: 18, fontWeight: "500" }}>{chat.name}</Text>
-                <Text style={{ color: colors.textSecondary, fontSize: 14, marginTop: 2 }}>{chat.message}</Text>
+                <Text style={{ color: colors.textPrimary, fontSize: 17, fontWeight: "600" }}>{chat.name}</Text>
+                <Text style={{ color: colors.textSecondary, fontSize: 14, marginTop: 2 }} numberOfLines={1}>
+                  {chat.message}
+                </Text>
               </View>
-              <Text style={{ color: colors.textSecondary, fontSize: 22 }}>›</Text>
+              <MaterialIcons name="chevron-right" size={24} color={colors.textSecondary} />
             </TouchableOpacity>
           ))}
         </View>

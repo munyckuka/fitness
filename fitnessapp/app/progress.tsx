@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { MaterialIcons } from "@expo/vector-icons";
 import { ActivityIndicator, SafeAreaView, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { useRouter } from "expo-router";
 import { MonthCalendar } from "@/components/month-calendar";
@@ -102,42 +103,90 @@ export default function Progress() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background, paddingTop: 20 }}>
       <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 140 }} showsVerticalScrollIndicator={false}>
-        <Text style={{ color: colors.textPrimary, fontSize: 28, fontWeight: "600", marginTop: 26, marginBottom: 18 }}>
+        <Text style={{ color: colors.textPrimary, fontSize: 28, fontWeight: "700", marginTop: 26 }}>
           Статистика
+        </Text>
+        <Text style={{ color: colors.textSecondary, fontSize: 15, marginTop: 4, marginBottom: 20 }}>
+          Следите за своим прогрессом
         </Text>
 
         {isLoading ? <ActivityIndicator color={colors.accent} style={{ marginBottom: 18 }} /> : null}
-        {error ? <Text style={{ color: "#FF8A80", marginBottom: 18 }}>{error}</Text> : null}
+        {error ? (
+          <View style={{ backgroundColor: "#FF8A8022", padding: 12, borderRadius: 14, marginBottom: 18 }}>
+            <Text style={{ color: "#FF8A80", textAlign: "center" }}>{error}</Text>
+          </View>
+        ) : null}
 
-        <MonthCalendar date={today} variant="workout-days" workoutDays={workoutDays} showAdjacentDays fixedWeekRows />
+        <MonthCalendar date={today} variant="workout-days" workoutDays={workoutDays} showAdjacentDays />
 
-        <View style={{ backgroundColor: colors.thirdary, borderRadius: 20, padding: 18, marginTop: 16 }}>
-          <Text style={{ color: colors.textPrimary, fontSize: 17, lineHeight: 22 }}>
-            Вы посещали тренировки {workoutDays.length} раз за этот месяц
-          </Text>
+        <View
+          style={{
+            backgroundColor: colors.thirdary,
+            borderRadius: 20,
+            padding: 18,
+            marginTop: 16,
+            borderWidth: 1,
+            borderColor: "rgba(255,255,255,0.05)",
+          }}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <View
+              style={{
+                width: 56,
+                height: 56,
+                borderRadius: 18,
+                backgroundColor: `${colors.accent}22`,
+                alignItems: "center",
+                justifyContent: "center",
+                marginRight: 14,
+              }}
+            >
+              <MaterialIcons name="local-fire-department" size={28} color={colors.accent} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: colors.textPrimary, fontSize: 26, fontWeight: "700" }}>
+                {workoutDays.length}
+              </Text>
+              <Text style={{ color: colors.textSecondary, fontSize: 14, marginTop: 2 }}>
+                {workoutDays.length === 1 ? "тренировка в этом месяце" : "тренировок в этом месяце"}
+              </Text>
+            </View>
+          </View>
 
           <TouchableOpacity
             activeOpacity={0.8}
             onPress={() => router.push("/workouts")}
             style={{
-              marginTop: 14,
-              alignSelf: "center",
+              marginTop: 16,
               backgroundColor: colors.accent,
-              height: 44,
+              height: 48,
               borderRadius: 14,
+              flexDirection: "row",
               justifyContent: "center",
               alignItems: "center",
-              paddingHorizontal: 16,
             }}
           >
-            <Text style={{ color: colors.textPrimary, fontSize: 15, fontWeight: "700" }}>
+            <MaterialIcons name="play-arrow" size={20} color="#FFFFFF" style={{ marginRight: 6 }} />
+            <Text style={{ color: "#FFFFFF", fontSize: 15, fontWeight: "700" }}>
               Начать тренировку
             </Text>
           </TouchableOpacity>
         </View>
 
-        <View style={{ backgroundColor: colors.thirdary, borderRadius: 20, padding: 18, marginTop: 16 }}>
-          <Text style={{ color: colors.textPrimary, fontSize: 17, marginBottom: 22 }}>Веса за 3 месяца</Text>
+        <View
+          style={{
+            backgroundColor: colors.thirdary,
+            borderRadius: 20,
+            padding: 18,
+            marginTop: 16,
+            borderWidth: 1,
+            borderColor: "rgba(255,255,255,0.05)",
+          }}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 22 }}>
+            <MaterialIcons name="monitor-weight" size={20} color={colors.accent} style={{ marginRight: 8 }} />
+            <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: "700" }}>Вес за 3 месяца</Text>
+          </View>
 
           {uniqueWeightHistory.length > 0 ? (
             <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end" }}>
@@ -146,20 +195,20 @@ export default function Progress() {
 
                 return (
                   <View key={item.label} style={{ flex: 1, alignItems: "center" }}>
+                    <Text style={{ color: colors.textPrimary, fontSize: 13, fontWeight: "700", marginBottom: 6 }}>
+                      {item.value > 0 ? item.value : "—"}
+                    </Text>
                     <View
                       style={{
-                        width: 32,
+                        width: 36,
                         height: Math.max(barHeight, 30),
-                        borderRadius: 8,
-                        backgroundColor: colors.accent,
+                        borderRadius: 10,
+                        backgroundColor: item.value > 0 ? colors.accent : colors.secondary,
                         marginBottom: 10,
                       }}
                     />
-                    <Text style={{ color: colors.textPrimary, fontSize: 14, fontWeight: "500" }}>
+                    <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: "500" }}>
                       {item.label}
-                    </Text>
-                    <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 4 }}>
-                      {item.value > 0 ? item.value : "—"}
                     </Text>
                   </View>
                 );

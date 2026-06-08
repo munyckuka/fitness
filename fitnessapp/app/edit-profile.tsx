@@ -1,5 +1,5 @@
 import { MaterialIcons } from "@expo/vector-icons";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ComponentProps, type ReactNode } from "react";
 import { useRouter } from "expo-router";
 import { ActivityIndicator, SafeAreaView, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { getStoredUserId } from "@/services/session-service";
@@ -33,6 +33,35 @@ type FormState = {
   weight: string;
 };
 
+function Section({
+  icon,
+  title,
+  children,
+}: {
+  icon: ComponentProps<typeof MaterialIcons>["name"];
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <View
+      style={{
+        backgroundColor: colors.thirdary,
+        borderRadius: 20,
+        padding: 16,
+        marginBottom: 16,
+        borderWidth: 1,
+        borderColor: "rgba(255,255,255,0.05)",
+      }}
+    >
+      <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 14 }}>
+        <MaterialIcons name={icon} size={20} color={colors.accent} style={{ marginRight: 8 }} />
+        <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: "700" }}>{title}</Text>
+      </View>
+      {children}
+    </View>
+  );
+}
+
 function OptionChip({
   label,
   selected,
@@ -47,15 +76,25 @@ function OptionChip({
       activeOpacity={0.85}
       onPress={onPress}
       style={{
-        paddingHorizontal: 14,
-        paddingVertical: 12,
-        borderRadius: 16,
-        backgroundColor: selected ? colors.accent : colors.thirdary,
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderRadius: 14,
+        backgroundColor: selected ? colors.accent : colors.secondary,
+        borderWidth: 1,
+        borderColor: selected ? colors.accent : "rgba(255,255,255,0.06)",
         marginRight: 10,
         marginBottom: 10,
       }}
     >
-      <Text style={{ color: colors.textPrimary, fontSize: 15, fontWeight: "600" }}>{label}</Text>
+      <Text
+        style={{
+          color: selected ? "#FFFFFF" : colors.textSecondary,
+          fontSize: 15,
+          fontWeight: selected ? "700" : "600",
+        }}
+      >
+        {label}
+      </Text>
     </TouchableOpacity>
   );
 }
@@ -65,30 +104,44 @@ function Field({
   value,
   onChangeText,
   placeholder,
+  unit,
 }: {
   label: string;
   value: string;
   onChangeText: (value: string) => void;
   placeholder: string;
+  unit?: string;
 }) {
   return (
-    <View style={{ marginBottom: 14 }}>
-      <Text style={{ color: colors.textPrimary, fontSize: 15, fontWeight: "600", marginBottom: 8 }}>{label}</Text>
-      <TextInput
-        value={value}
-        onChangeText={onChangeText}
-        keyboardType="numeric"
-        placeholder={placeholder}
-        placeholderTextColor="#999"
+    <View style={{ flex: 1 }}>
+      <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: "600", marginBottom: 8 }}>{label}</Text>
+      <View
         style={{
-          height: 48,
+          height: 52,
           borderRadius: 14,
-          backgroundColor: "#FFFFFF",
+          backgroundColor: colors.secondary,
+          borderWidth: 1,
+          borderColor: "rgba(255,255,255,0.06)",
           paddingHorizontal: 14,
-          color: "#000000",
-          fontSize: 16,
+          flexDirection: "row",
+          alignItems: "center",
         }}
-      />
+      >
+        <TextInput
+          value={value}
+          onChangeText={onChangeText}
+          keyboardType="numeric"
+          placeholder={placeholder}
+          placeholderTextColor={colors.textSecondary}
+          style={{
+            flex: 1,
+            color: colors.textPrimary,
+            fontSize: 18,
+            fontWeight: "600",
+          }}
+        />
+        {unit ? <Text style={{ color: colors.textSecondary, fontSize: 14, marginLeft: 6 }}>{unit}</Text> : null}
+      </View>
     </View>
   );
 }
@@ -213,65 +266,81 @@ export default function EditProfile() {
           <Text style={{ color: colors.textPrimary, fontSize: 26, fontWeight: "700" }}>Редактировать профиль</Text>
         </View>
 
-        <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: "600", marginBottom: 12 }}>Цель</Text>
-        <View style={{ flexDirection: "row", flexWrap: "wrap", marginBottom: 14 }}>
-          {GOAL_OPTIONS.map((option) => (
-            <OptionChip key={option} label={option} selected={form.goal === option} onPress={() => setField("goal", option)} />
-          ))}
-        </View>
+        <Section icon="flag" title="Цель">
+          <View style={{ flexDirection: "row", flexWrap: "wrap", marginBottom: -10 }}>
+            {GOAL_OPTIONS.map((option) => (
+              <OptionChip key={option} label={option} selected={form.goal === option} onPress={() => setField("goal", option)} />
+            ))}
+          </View>
+        </Section>
 
-        <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: "600", marginBottom: 12 }}>Уровень</Text>
-        <View style={{ flexDirection: "row", flexWrap: "wrap", marginBottom: 14 }}>
-          {EXPERIENCE_OPTIONS.map((option) => (
-            <OptionChip key={option} label={option} selected={form.experience === option} onPress={() => setField("experience", option)} />
-          ))}
-        </View>
+        <Section icon="trending-up" title="Уровень">
+          <View style={{ flexDirection: "row", flexWrap: "wrap", marginBottom: -10 }}>
+            {EXPERIENCE_OPTIONS.map((option) => (
+              <OptionChip key={option} label={option} selected={form.experience === option} onPress={() => setField("experience", option)} />
+            ))}
+          </View>
+        </Section>
 
-        <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: "600", marginBottom: 12 }}>Оборудование</Text>
-        <View style={{ flexDirection: "row", flexWrap: "wrap", marginBottom: 14 }}>
-          {EQUIPMENT_OPTIONS.map((option) => (
-            <OptionChip key={option} label={option} selected={form.equipment === option} onPress={() => setField("equipment", option)} />
-          ))}
-        </View>
+        <Section icon="fitness-center" title="Оборудование">
+          <View style={{ flexDirection: "row", flexWrap: "wrap", marginBottom: -10 }}>
+            {EQUIPMENT_OPTIONS.map((option) => (
+              <OptionChip key={option} label={option} selected={form.equipment === option} onPress={() => setField("equipment", option)} />
+            ))}
+          </View>
+        </Section>
 
-        <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: "600", marginBottom: 12 }}>Частота тренировок</Text>
-        <View style={{ flexDirection: "row", flexWrap: "wrap", marginBottom: 18 }}>
-          {FREQUENCY_OPTIONS.map((option) => (
-            <OptionChip
-              key={option}
-              label={`${option} тренировки`}
-              selected={form.frequency === option}
-              onPress={() => setField("frequency", option)}
-            />
-          ))}
-        </View>
+        <Section icon="event-repeat" title="Частота тренировок">
+          <View style={{ flexDirection: "row", flexWrap: "wrap", marginBottom: -10 }}>
+            {FREQUENCY_OPTIONS.map((option) => (
+              <OptionChip
+                key={option}
+                label={`${option} в неделю`}
+                selected={form.frequency === option}
+                onPress={() => setField("frequency", option)}
+              />
+            ))}
+          </View>
+        </Section>
 
-        <Field label="Возраст" value={form.age} onChangeText={(value) => setField("age", value)} placeholder="18" />
-        <Field label="Рост" value={form.height} onChangeText={(value) => setField("height", value)} placeholder="175" />
-        <Field label="Вес" value={form.weight} onChangeText={(value) => setField("weight", value)} placeholder="60" />
+        <Section icon="straighten" title="Параметры тела">
+          <View style={{ flexDirection: "row", gap: 12 }}>
+            <Field label="Возраст" value={form.age} onChangeText={(value) => setField("age", value)} placeholder="18" />
+            <Field label="Рост" value={form.height} onChangeText={(value) => setField("height", value)} placeholder="175" unit="см" />
+            <Field label="Вес" value={form.weight} onChangeText={(value) => setField("weight", value)} placeholder="60" unit="кг" />
+          </View>
+        </Section>
+
+        {error ? (
+          <View style={{ backgroundColor: "#FF8A8022", padding: 12, borderRadius: 14, marginBottom: 12 }}>
+            <Text style={{ color: "#FF8A80", fontSize: 14, textAlign: "center" }}>{error}</Text>
+          </View>
+        ) : null}
 
         <TouchableOpacity
           activeOpacity={0.85}
           onPress={handleSave}
           disabled={isSaving}
           style={{
-            marginTop: 18,
-            height: 54,
-            borderRadius: 16,
+            marginTop: 4,
+            height: 56,
+            borderRadius: 18,
             backgroundColor: colors.accent,
+            flexDirection: "row",
             justifyContent: "center",
             alignItems: "center",
             opacity: isSaving ? 0.7 : 1,
           }}
         >
           {isSaving ? (
-            <ActivityIndicator color={colors.textPrimary} />
+            <ActivityIndicator color="#FFFFFF" />
           ) : (
-            <Text style={{ color: colors.textPrimary, fontSize: 17, fontWeight: "700" }}>Сохранить изменения</Text>
+            <>
+              <MaterialIcons name="check" size={22} color="#FFFFFF" style={{ marginRight: 8 }} />
+              <Text style={{ color: "#FFFFFF", fontSize: 17, fontWeight: "700" }}>Сохранить изменения</Text>
+            </>
           )}
         </TouchableOpacity>
-
-        {error ? <Text style={{ color: "#FF8A80", fontSize: 14, marginTop: 12 }}>{error}</Text> : null}
       </ScrollView>
     </SafeAreaView>
   );

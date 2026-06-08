@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { MaterialIcons } from "@expo/vector-icons";
 import { ActivityIndicator, Image, SafeAreaView, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { useRouter } from "expo-router";
 import { colors } from "./theme";
@@ -122,6 +123,8 @@ export default function Index() {
               alignItems: "center",
               overflow: "hidden",
               marginRight: 14,
+              borderWidth: 1,
+              borderColor: "rgba(255,255,255,0.08)",
             }}
           >
             <Image
@@ -131,11 +134,11 @@ export default function Index() {
           </View>
 
           <View>
-            <Text style={{ color: colors.textPrimary, fontSize: 22, fontWeight: "700" }}>
-              Привет, {user?.name ?? "спортсмен"}
+            <Text style={{ color: colors.textSecondary, fontSize: 14 }}>
+              С возвращением
             </Text>
-            <Text style={{ color: colors.textSecondary, fontSize: 14, marginTop: 2 }}>
-              Приготовьтесь!
+            <Text style={{ color: colors.textPrimary, fontSize: 22, fontWeight: "700", marginTop: 2 }}>
+              {user?.name ?? "Спортсмен"}
             </Text>
           </View>
         </View>
@@ -143,7 +146,14 @@ export default function Index() {
         <TouchableOpacity
           activeOpacity={0.8}
           onPress={() => router.push("/workouts")}
-          style={{ backgroundColor: colors.thirdary, borderRadius: 20, padding: 18, marginBottom: 16 }}
+          style={{
+            backgroundColor: colors.thirdary,
+            borderRadius: 20,
+            padding: 18,
+            marginBottom: 16,
+            borderWidth: 1,
+            borderColor: "rgba(255,255,255,0.05)",
+          }}
         >
           <Text style={{ color: colors.textSecondary, fontSize: 13, marginBottom: 10 }}>
             Что тренировать сегодня?
@@ -163,48 +173,75 @@ export default function Index() {
                 width: 66,
                 height: 66,
                 borderRadius: 18,
-                backgroundColor: colors.thirdary,
+                backgroundColor: `${colors.accent}22`,
                 justifyContent: "center",
                 alignItems: "center",
               }}
             >
-              <Text style={{ color: colors.accent, fontSize: 32 }}>💪</Text>
+              <MaterialIcons name="fitness-center" size={30} color={colors.accent} />
             </View>
           </View>
         </TouchableOpacity>
 
-        <View style={{ backgroundColor: colors.thirdary, borderRadius: 20, padding: 18, marginBottom: 18 }}>
-          <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: "600", marginBottom: 10 }}>
-            Ставьте конкретные цели:
-          </Text>
+        <View
+          style={{
+            backgroundColor: colors.thirdary,
+            borderRadius: 20,
+            padding: 18,
+            marginBottom: 18,
+            borderWidth: 1,
+            borderColor: "rgba(255,255,255,0.05)",
+          }}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 10 }}>
+            <MaterialIcons name="lightbulb" size={18} color={colors.accent} style={{ marginRight: 8 }} />
+            <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: "700" }}>
+              Совет дня
+            </Text>
+          </View>
           <Text style={{ color: colors.textSecondary, fontSize: 14, marginBottom: 16, lineHeight: 20 }}>
             {goalsTip?.text ?? "Определите, чего хотите достичь (похудеть, набрать массу, выносливость)."}
           </Text>
 
-          {error ? <Text style={{ color: "#FF8A80", fontSize: 14, marginBottom: 12 }}>{error}</Text> : null}
+          {error ? (
+            <View style={{ backgroundColor: "#FF8A8022", padding: 10, borderRadius: 12, marginBottom: 12 }}>
+              <Text style={{ color: "#FF8A80", fontSize: 14, textAlign: "center" }}>{error}</Text>
+            </View>
+          ) : null}
 
           <TouchableOpacity
             activeOpacity={0.8}
             onPress={handleStartWorkout}
             style={{
-              height: 44,
+              height: 48,
               borderRadius: 14,
               backgroundColor: colors.accent,
+              flexDirection: "row",
               justifyContent: "center",
               alignItems: "center",
             }}
           >
             {isLoading ? (
-              <ActivityIndicator color={colors.textPrimary} />
+              <ActivityIndicator color="#FFFFFF" />
             ) : (
-              <Text style={{ color: colors.textPrimary, fontSize: 15, fontWeight: "700" }}>
-                {workout ? "Начать тренировку" : "Создать план"}
-              </Text>
+              <>
+                <MaterialIcons name={workout ? "play-arrow" : "add"} size={20} color="#FFFFFF" style={{ marginRight: 6 }} />
+                <Text style={{ color: "#FFFFFF", fontSize: 15, fontWeight: "700" }}>
+                  {workout ? "Начать тренировку" : "Создать план"}
+                </Text>
+              </>
             )}
           </TouchableOpacity>
         </View>
 
-        <MonthCalendar date={today} selectedDay={dayOfMonth} variant="workout-days" workoutDays={workoutDays} showAdjacentDays fixedWeekRows />
+        <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12, marginTop: 4 }}>
+          <MaterialIcons name="calendar-today" size={18} color={colors.accent} style={{ marginRight: 8 }} />
+          <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: "700" }}>
+            Активность за месяц
+          </Text>
+        </View>
+
+        <MonthCalendar date={today} selectedDay={dayOfMonth} variant="workout-days" workoutDays={workoutDays} showAdjacentDays />
       </ScrollView>
 
     </SafeAreaView>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { MaterialIcons } from "@expo/vector-icons";
-import { ActivityIndicator, Alert, Image, SafeAreaView, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Image, Modal, SafeAreaView, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { useRouter } from "expo-router";
 import { type UserProfile, type WorkoutSummary } from "@/services/fitness-service";
 import { getChatDialogs, type ChatDialog } from "@/services/chat-service";
@@ -33,6 +33,13 @@ export default function Profile() {
   const [isLoadingDialogs, setIsLoadingDialogs] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isLogoutModalOpen, setLogoutModalOpen] = useState(false);
+
+  const handleLogout = async () => {
+    setLogoutModalOpen(false);
+    await clearStoredUserId();
+    router.replace("/register");
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -113,10 +120,20 @@ export default function Profile() {
     return AVATARS[hash % AVATARS.length];
   };
 
+  const getLoginInitial = (login?: string) => {
+    const normalized = (login ?? "").trim().replace(/^@+/, "");
+    if (!normalized) {
+      return "?";
+    }
+
+    return normalized[0].toUpperCase();
+  };
+
   const chatItems = dialogs.length
     ? dialogs.map((dialog) => ({
         key: dialog.conversationId,
         name: dialog.peerName,
+        login: dialog.peerLogin,
         message: dialog.lastMessageText || "Начните диалог",
         avatar: resolveAvatar(dialog.peerUserId),
         conversationId: dialog.conversationId,
@@ -125,6 +142,7 @@ export default function Profile() {
     : CHAT_PREVIEW.map((chat) => ({
         key: chat.name,
         name: chat.name,
+        login: "",
         message: chat.message,
         avatar: chat.avatar,
         conversationId: "",
@@ -132,157 +150,228 @@ export default function Profile() {
       }));
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background, paddingTop: 40 }}>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 140 }}>
-        {isLoading ? <ActivityIndicator color={colors.accent} style={{ marginBottom: 18 }} /> : null}
-        {error ? <Text style={{ color: "#FF8A80", marginBottom: 18 }}>{error}</Text> : null}
 
-        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 22 }}>
-          <View style={{ flex: 1, paddingRight: 14 }}>
-            <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}>
-              <Text style={{ color: colors.textPrimary, fontSize: 26, lineHeight: 32, fontWeight: "500" }}>{user?.name ?? "UserName"}</Text>
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={() => router.push("/edit-profile")}
-                style={{
-                  marginLeft: 10,
-                  width: 40,
-                  height: 40,
-                  borderRadius: 8,
-                  backgroundColor: colors.secondary,
-                  justifyContent: "center",
-                  alignItems: "center",
-                }}
-              >
-                <MaterialIcons name="edit" size={22} color={colors.textPrimary} />
-              </TouchableOpacity>
-            </View>
-
-            <Text style={{ color: colors.textSecondary, fontSize: 14, lineHeight: 20, marginBottom: 6 }}>
-              {user?.login ? `@${user.login}` : "@login"}
-            </Text>
-
-            <Text style={{ color: colors.textSecondary, fontSize: 18, lineHeight: 24, fontWeight: "400" }}>
-              {user?.gender ?? "Пол не указан"}{user?.age ? ` ${user.age} лет` : ""}
-            </Text>
-            <Text style={{ color: colors.textSecondary, fontSize: 18, lineHeight: 24, fontWeight: "400" }}>
-              {user?.height ? `${user.height}см.` : "Рост не указан"} {user?.weight ? `${user.weight}кг.` : ""}
-            </Text>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 140, paddingTop: 35 }}>
+        {isLoading && !user ? (
+          <ActivityIndicator color={colors.accent} style={{ marginTop: 20 }} />
+        ) : null}
+        
+        {error ? (
+          <View style={{ backgroundColor: "#FF8A8022", padding: 12, borderRadius: 12, marginBottom: 20 }}>
+            <Text style={{ color: "#FF8A80", textAlign: "center" }}>{error}</Text>
           </View>
+        ) : null}
 
-          <View
-            style={{
-              width: 116,
-              height: 116,
-              borderRadius: 58,
-              backgroundColor: "#DAD9DF",
-              overflow: "hidden",
-            }}
-          >
-            <Image
-              source={{ uri: "https://images.unsplash.com/photo-1633332755192-727a05c4013d?auto=format&fit=crop&w=400&q=80" }}
-              style={{ width: "100%", height: "100%" }}
-            />
-          </View>
-        </View>
-
-        <View style={{ backgroundColor: colors.thirdary, borderRadius: 20, padding: 18, marginBottom: 18 }}>
-          <Text style={{ color: colors.textPrimary, fontSize: 22, lineHeight: 28, fontWeight: "500", marginBottom: 18 }}>
-            Мой план тренировок:
-          </Text>
-
-          {workouts.map((item) => (
-            <View key={item.id} style={{ flexDirection: "row", alignItems: "center", marginBottom: 14 }}>
-              <View style={{ flex: 1, paddingRight: 12 }}>
-                <Text style={{ color: colors.textPrimary, fontSize: 20, lineHeight: 26, fontWeight: "500" }}>{item.title}</Text>
-                <Text style={{ color: colors.textSecondary, fontSize: 15, lineHeight: 22, marginTop: 4 }}>
-                  {item.goal}, {item.equipment}, {item.exercises.length} упражнений
-                </Text>
-              </View>
-
-              <View style={{ width: 88, height: 88, borderRadius: 18, overflow: "hidden", backgroundColor: colors.secondary }}>
-                {item.exercises[0]?.imageUri ? <Image source={{ uri: item.exercises[0].imageUri }} style={{ width: "100%", height: "100%" }} /> : null}
-              </View>
-            </View>
-          ))}
-
-          {workouts.length === 0 ? <Text style={{ color: colors.textSecondary, marginBottom: 12 }}>План тренировок еще не создан.</Text> : null}
-
-          <View style={{ flexDirection: "row", gap: 12, marginTop: 10 }}>
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={() => router.push("/edit-profile")}
+        {/* Header Section */}
+        <View style={{ alignItems: "center", marginBottom: 30 }}>
+          <View style={{ position: "relative" }}>
+            <View
               style={{
-                flex: 1,
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "center",
-                paddingVertical: 8,
-                borderRadius: 16,
-                backgroundColor: colors.secondary,
+                width: 120,
+                height: 120,
+                borderRadius: 60,
+                borderWidth: 3,
+                borderColor: colors.accent,
+                padding: 4,
+                backgroundColor: colors.background,
               }}
             >
-              <Text style={{ color: colors.textSecondary, fontSize: 14, lineHeight: 20 }}>
-                Изменить
-              </Text>
-              <MaterialIcons name="edit" size={20} color={colors.textSecondary} />
-            </TouchableOpacity>
-
+              <Image
+                source={{ uri: "https://images.unsplash.com/photo-1633332755192-727a05c4013d?auto=format&fit=crop&w=400&q=80" }}
+                style={{ width: "100%", height: "100%", borderRadius: 54 }}
+              />
+            </View>
             <TouchableOpacity
               activeOpacity={0.8}
-              onPress={async () => {
-                if (!primaryWorkout) {
-                  router.push("/create-workout");
-                  return;
-                }
-
-                await setStoredWorkoutId(primaryWorkout.id);
-                router.push(`/training?workoutId=${primaryWorkout.id}`);
-              }}
+              onPress={() => router.push("/edit-profile")}
               style={{
-                flex: 1.55,
-                paddingVertical: 8,
-                borderRadius: 16,
+                position: "absolute",
+                bottom: 0,
+                right: 0,
+                width: 36,
+                height: 36,
+                borderRadius: 18,
                 backgroundColor: colors.accent,
                 justifyContent: "center",
                 alignItems: "center",
+                elevation: 4,
+                shadowColor: "#000",
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.25,
+                shadowRadius: 3.84,
               }}
             >
-              <Text style={{ color: colors.textPrimary, fontSize: 14, lineHeight: 20, fontWeight: "600" }}>
-                {primaryWorkout ? "Начать тренировку" : "Создать план"}
-              </Text>
+              <MaterialIcons name="edit" size={18} color="white" />
             </TouchableOpacity>
+          </View>
+
+          <Text style={{ color: colors.textPrimary, fontSize: 28, fontWeight: "700", marginTop: 16 }}>
+            {user?.name ?? "Спортсмен"}
+          </Text>
+          <Text style={{ color: colors.textSecondary, fontSize: 16, marginTop: 4 }}>
+            {user?.login ? `@${user.login}` : "@user"}
+          </Text>
+        </View>
+
+        {/* Stats Row */}
+        <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 25 }}>
+          <View style={{
+            backgroundColor: colors.thirdary,
+            width: "31%",
+            paddingVertical: 15,
+            borderRadius: 20,
+            alignItems: "center",
+            borderWidth: 1,
+            borderColor: "rgba(255,255,255,0.05)"
+          }}>
+            <MaterialIcons name="cake" size={22} color={colors.accent} />
+            <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: "700", marginTop: 8 }}>
+              {user?.age ?? "—"}
+            </Text>
+            <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 2 }}>Возраст</Text>
+          </View>
+
+          <View style={{
+            backgroundColor: colors.thirdary,
+            width: "31%",
+            paddingVertical: 15,
+            borderRadius: 20,
+            alignItems: "center",
+            borderWidth: 1,
+            borderColor: "rgba(255,255,255,0.05)"
+          }}>
+            <MaterialIcons name="height" size={22} color={colors.accent} />
+            <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: "700", marginTop: 8 }}>
+              {user?.height ? `${user.height}` : "—"}
+            </Text>
+            <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 2 }}>Рост (см)</Text>
+          </View>
+
+          <View style={{
+            backgroundColor: colors.thirdary,
+            width: "31%",
+            paddingVertical: 15,
+            borderRadius: 20,
+            alignItems: "center",
+            borderWidth: 1,
+            borderColor: "rgba(255,255,255,0.05)"
+          }}>
+            <MaterialIcons name="fitness-center" size={22} color={colors.accent} />
+            <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: "700", marginTop: 8 }}>
+              {user?.weight ? `${user.weight}` : "—"}
+            </Text>
+            <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 2 }}>Вес (кг)</Text>
           </View>
         </View>
 
-        <View style={{ backgroundColor: colors.thirdary, borderRadius: 20, padding: 18 }}>
-          <Text style={{ color: colors.textPrimary, fontSize: 20, fontWeight: "500", marginBottom: 14 }}>
-            Ваши знакомые
-          </Text>
+        {/* Workout Plan Section */}
+        <View style={{ marginBottom: 25 }}>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 15 }}>
+            <Text style={{ color: colors.textPrimary, fontSize: 20, fontWeight: "700" }}>
+              Мой план
+            </Text>
 
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: 6, marginBottom: 16 }}>
-            {AVATARS.map((uri, idx) => (
-              <View
-                key={`${uri}-${idx}`}
+          </View>
+
+          {workouts.length > 0 ? (
+            workouts.map((item) => (
+              <TouchableOpacity
+                key={item.id}
+                activeOpacity={0.9}
+                onPress={async () => {
+                  await setStoredWorkoutId(item.id);
+                  router.push(`/training?workoutId=${item.id}`);
+                }}
                 style={{
-                  width: 64,
-                  height: 64,
-                  borderRadius: 32,
-                  overflow: "hidden",
-                  marginRight: 10,
-                  backgroundColor: colors.secondary,
+                  backgroundColor: colors.thirdary,
+                  borderRadius: 24,
+                  padding: 16,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  marginBottom: 12,
+                  borderWidth: 1,
+                  borderColor: "rgba(255,255,255,0.05)"
                 }}
               >
-                <Image source={{ uri }} style={{ width: "100%", height: "100%" }} />
-              </View>
-            ))}
-          </ScrollView>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: colors.textPrimary, fontSize: 18, fontWeight: "700" }}>{item.title}</Text>
+                  <Text style={{ color: colors.textSecondary, fontSize: 14, marginTop: 4 }} numberOfLines={1}>
+                    {item.exercises.length} упражнений • {item.goal}
+                  </Text>
+                </View>
+                
+                <View style={{ backgroundColor: colors.accent, width: 36, height: 36, borderRadius: 18, justifyContent: "center", alignItems: "center" }}>
+                  <MaterialIcons name="play-arrow" size={24} color="white" />
+                </View>
+              </TouchableOpacity>
+            ))
+          ) : (
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => router.push("/create-workout")}
+              style={{
+                backgroundColor: colors.thirdary,
+                borderRadius: 24,
+                padding: 30,
+                alignItems: "center",
+                justifyContent: "center",
+                borderStyle: "dashed",
+                borderWidth: 1,
+                borderColor: colors.textSecondary,
+              }}
+            >
+              <MaterialIcons name="add-circle-outline" size={40} color={colors.textSecondary} />
+              <Text style={{ color: colors.textSecondary, marginTop: 10, fontWeight: "600" }}>Создать план тренировок</Text>
+            </TouchableOpacity>
+          )}
 
-          <View style={{ width: "100%", height: 2, backgroundColor: "#D8D8D8", marginTop: 8 }} />
+          {workouts.length > 0 && (
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={async () => {
+                if (primaryWorkout) {
+                  await setStoredWorkoutId(primaryWorkout.id);
+                  router.push(`/training?workoutId=${primaryWorkout.id}`);
+                }
+              }}
+              style={{
+                backgroundColor: colors.accent,
+                borderRadius: 18,
+                paddingVertical: 14,
+                alignItems: "center",
+                marginTop: 8,
+              }}
+            >
+              <Text style={{ color: "white", fontSize: 16, fontWeight: "700" }}>Начать тренировку</Text>
+            </TouchableOpacity>
+          )}
+        </View>
 
-          {isLoadingDialogs ? <ActivityIndicator color={colors.accent} style={{ marginTop: 14 }} /> : null}
+        <View
+          style={{
+            backgroundColor: colors.thirdary,
+            borderRadius: 20,
+            padding: 18,
+            marginVertical: 16,
+            borderWidth: 1,
+            borderColor: "rgba(255,255,255,0.05)",
+          }}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 4 }}>
+            <MaterialIcons name="forum" size={20} color={colors.accent} style={{ marginRight: 8 }} />
+            <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: "700" }}>Ваши знакомые</Text>
+          </View>
 
-          {chatItems.map((chat) => (
+          {isLoadingDialogs ? <ActivityIndicator color={colors.accent} style={{ marginTop: 18 }} /> : null}
+
+          {!isLoadingDialogs && chatItems.length === 0 ? (
+            <View style={{ alignItems: "center", paddingVertical: 24 }}>
+              <MaterialIcons name="chat-bubble-outline" size={40} color={colors.textSecondary} />
+              <Text style={{ color: colors.textSecondary, marginTop: 10 }}>Пока нет активных чатов.</Text>
+            </View>
+          ) : null}
+
+          {chatItems.map((chat: typeof chatItems[number], index: number) => (
             <TouchableOpacity
               key={chat.key}
               activeOpacity={0.8}
@@ -291,7 +380,7 @@ export default function Profile() {
                   pathname: "/chat",
                   params: {
                     name: chat.name,
-                    avatar: chat.avatar,
+                    avatar: "",
                     conversationId: chat.conversationId,
                     peerUserId: chat.peerUserId,
                   },
@@ -300,53 +389,122 @@ export default function Profile() {
               style={{
                 flexDirection: "row",
                 alignItems: "center",
-                marginTop: 14,
-                paddingVertical: 4,
+                paddingVertical: 14,
+                borderTopWidth: index === 0 ? 0 : 1,
+                borderTopColor: "rgba(255,255,255,0.05)",
               }}
             >
-              <View style={{ width: 64, height: 64, borderRadius: 32, overflow: "hidden", marginRight: 14 }}>
-                <Image source={{ uri: chat.avatar }} style={{ width: "100%", height: "100%" }} />
+              <View
+                style={{
+                  width: 58,
+                  height: 58,
+                  borderRadius: 29,
+                  marginRight: 14,
+                  backgroundColor: colors.background,
+                  borderWidth: 1,
+                  borderColor: "rgba(255,255,255,0.08)",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Text style={{ color: colors.textPrimary, fontSize: 22, fontWeight: "700" }}>
+                  {getLoginInitial(chat.login)}
+                </Text>
               </View>
 
               <View style={{ flex: 1 }}>
-                <Text style={{ color: colors.textPrimary, fontSize: 18, fontWeight: "500" }}>{chat.name}</Text>
-                <Text style={{ color: colors.textSecondary, fontSize: 14, marginTop: 2 }}>{chat.message}</Text>
+                <Text style={{ color: colors.textPrimary, fontSize: 17, fontWeight: "600" }}>{chat.name}</Text>
+                <Text style={{ color: colors.textSecondary, fontSize: 14, marginTop: 2 }} numberOfLines={1}>
+                  {chat.message}
+                </Text>
               </View>
-
-              <Text style={{ color: colors.textSecondary, fontSize: 22 }}>›</Text>
+              <MaterialIcons name="chevron-right" size={24} color={colors.textSecondary} />
             </TouchableOpacity>
           ))}
         </View>
 
+        {/* Logout Button */}
         <TouchableOpacity
           activeOpacity={0.8}
-          onPress={() => {
-            Alert.alert("Выход", "Вы уверены, что хотите выйти?", [
-              { text: "Отмена", onPress: () => {}, style: "cancel" },
-              {
-                text: "Выход",
-                onPress: async () => {
-                  await clearStoredUserId();
-                  router.replace("/register");
-                },
-                style: "destructive",
-              },
-            ]);
-          }}
+          onPress={() => setLogoutModalOpen(true)}
           style={{
-            marginTop: 18,
-            paddingVertical: 12,
-            borderRadius: 16,
-            backgroundColor: colors.secondary,
-            justifyContent: "center",
+            flexDirection: "row",
             alignItems: "center",
+            justifyContent: "center",
+            paddingVertical: 16,
+            borderRadius: 20,
+            backgroundColor: "rgba(255,255,255,0.05)",
+            marginBottom: 20,
           }}
         >
-          <Text style={{ color: colors.textSecondary, fontSize: 16, fontWeight: "600" }}>
-            Выход
+          <MaterialIcons name="logout" size={20} color="#FF8A80" style={{ marginRight: 10 }} />
+          <Text style={{ color: "#FF8A80", fontSize: 16, fontWeight: "600" }}>
+            Выйти из аккаунта
           </Text>
         </TouchableOpacity>
+
+        <Modal transparent visible={isLogoutModalOpen} animationType="fade" onRequestClose={() => setLogoutModalOpen(false)}>
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={() => setLogoutModalOpen(false)}
+            style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "center", paddingHorizontal: 30 }}
+          >
+            <TouchableOpacity
+              activeOpacity={1}
+              onPress={() => {}}
+              style={{
+                backgroundColor: colors.thirdary,
+                borderRadius: 22,
+                padding: 24,
+                borderWidth: 1,
+                borderColor: "rgba(255,255,255,0.08)",
+                alignItems: "center",
+              }}
+            >
+              <View
+                style={{
+                  width: 60,
+                  height: 60,
+                  borderRadius: 30,
+                  backgroundColor: "#FF8A8022",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginBottom: 16,
+                }}
+              >
+                <MaterialIcons name="logout" size={28} color="#FF8A80" />
+              </View>
+
+              <Text style={{ color: colors.textPrimary, fontSize: 20, fontWeight: "700", marginBottom: 8 }}>
+                Выход
+              </Text>
+              <Text style={{ color: colors.textSecondary, fontSize: 15, textAlign: "center", marginBottom: 24, lineHeight: 21 }}>
+                Вы уверены, что хотите выйти из аккаунта?
+              </Text>
+
+              <View style={{ flexDirection: "row", gap: 12, alignSelf: "stretch" }}>
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  onPress={() => setLogoutModalOpen(false)}
+                  style={{ flex: 1, paddingVertical: 14, borderRadius: 14, alignItems: "center", backgroundColor: colors.secondary }}
+                >
+                  <Text style={{ color: colors.textPrimary, fontSize: 15, fontWeight: "600" }}>Отмена</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  onPress={() => {
+                    void handleLogout();
+                  }}
+                  style={{ flex: 1, paddingVertical: 14, borderRadius: 14, alignItems: "center", backgroundColor: "#FF8A80" }}
+                >
+                  <Text style={{ color: "#FFFFFF", fontSize: 15, fontWeight: "700" }}>Выйти</Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </Modal>
       </ScrollView>
-    </SafeAreaView>
+
   );
 }

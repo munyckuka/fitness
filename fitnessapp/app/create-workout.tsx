@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { MaterialIcons } from "@expo/vector-icons";
 import { ActivityIndicator, SafeAreaView, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -40,17 +41,22 @@ function StepCard({ label, subtitle, selected, onPress }: { label: string; subti
       style={{
         backgroundColor: selected ? colors.accent : colors.thirdary,
         borderRadius: 20,
-        padding: 24,
+        padding: 20,
         justifyContent: "center",
         alignItems: "center",
         flex: 1,
-        minHeight: 140,
+        minHeight: 130,
+        borderWidth: 1,
+        borderColor: selected ? colors.accent : "rgba(255,255,255,0.06)",
       }}
     >
-      <Text style={{ color: colors.textPrimary, fontSize: 24, fontWeight: "600", textAlign: "center", marginBottom: 8 }}>
+      {selected ? (
+        <MaterialIcons name="check-circle" size={20} color="#FFFFFF" style={{ position: "absolute", top: 12, right: 12 }} />
+      ) : null}
+      <Text style={{ color: colors.textPrimary, fontSize: 22, fontWeight: "700", textAlign: "center", marginBottom: 8 }}>
         {label}
       </Text>
-      <Text style={{ color: selected ? colors.textPrimary : colors.textSecondary, fontSize: 14, textAlign: "center" }}>
+      <Text style={{ color: selected ? "rgba(255,255,255,0.85)" : colors.textSecondary, fontSize: 14, textAlign: "center" }}>
         {subtitle}
       </Text>
     </TouchableOpacity>
@@ -229,15 +235,18 @@ function Step4Parameters({ data, onUpdate }: { data: WorkoutData; onUpdate: (dat
             onChangeText={(v) => onUpdate({ ...data, age: v })}
             keyboardType="numeric"
             placeholder="18 лет"
-            placeholderTextColor="#999"
+            placeholderTextColor={colors.textSecondary}
             style={{
               flex: 1,
-              height: 44,
-              borderRadius: 12,
-              backgroundColor: "#FFFFFF",
-              paddingHorizontal: 12,
-              color: "#000000",
+              height: 52,
+              borderRadius: 14,
+              backgroundColor: colors.thirdary,
+              borderWidth: 1,
+              borderColor: "rgba(255,255,255,0.06)",
+              paddingHorizontal: 14,
+              color: colors.textPrimary,
               fontSize: 16,
+              fontWeight: "600",
             }}
           />
         </View>
@@ -249,15 +258,18 @@ function Step4Parameters({ data, onUpdate }: { data: WorkoutData; onUpdate: (dat
             onChangeText={(v) => onUpdate({ ...data, height: v })}
             keyboardType="numeric"
             placeholder="175 см."
-            placeholderTextColor="#999"
+            placeholderTextColor={colors.textSecondary}
             style={{
               flex: 1,
-              height: 44,
-              borderRadius: 12,
-              backgroundColor: "#FFFFFF",
-              paddingHorizontal: 12,
-              color: "#000000",
+              height: 52,
+              borderRadius: 14,
+              backgroundColor: colors.thirdary,
+              borderWidth: 1,
+              borderColor: "rgba(255,255,255,0.06)",
+              paddingHorizontal: 14,
+              color: colors.textPrimary,
               fontSize: 16,
+              fontWeight: "600",
             }}
           />
         </View>
@@ -269,15 +281,18 @@ function Step4Parameters({ data, onUpdate }: { data: WorkoutData; onUpdate: (dat
             onChangeText={(v) => onUpdate({ ...data, weight: v })}
             keyboardType="numeric"
             placeholder="60 кг."
-            placeholderTextColor="#999"
+            placeholderTextColor={colors.textSecondary}
             style={{
               flex: 1,
-              height: 44,
-              borderRadius: 12,
-              backgroundColor: "#FFFFFF",
-              paddingHorizontal: 12,
-              color: "#000000",
+              height: 52,
+              borderRadius: 14,
+              backgroundColor: colors.thirdary,
+              borderWidth: 1,
+              borderColor: "rgba(255,255,255,0.06)",
+              paddingHorizontal: 14,
+              color: colors.textPrimary,
               fontSize: 16,
+              fontWeight: "600",
             }}
           />
         </View>
@@ -297,21 +312,35 @@ function Step5Frequency({ data, onUpdate }: { data: WorkoutData; onUpdate: (data
       </Text>
 
       <View style={{ gap: 12, marginBottom: 32 }}>
-        {FREQUENCY_OPTIONS.map((frequency: string) => (
-          <TouchableOpacity
-            key={frequency}
-            activeOpacity={0.8}
-            onPress={() => onUpdate({ ...data, frequency })}
-            style={{
-              borderRadius: 18,
-              backgroundColor: data.frequency === frequency ? colors.accent : colors.thirdary,
-              paddingVertical: 18,
-              paddingHorizontal: 18,
-            }}
-          >
-            <Text style={{ color: colors.textPrimary, fontSize: 18, fontWeight: "600" }}>{frequency} тренировки</Text>
-          </TouchableOpacity>
-        ))}
+        {FREQUENCY_OPTIONS.map((frequency: string) => {
+          const isSelected = data.frequency === frequency;
+
+          return (
+            <TouchableOpacity
+              key={frequency}
+              activeOpacity={0.8}
+              onPress={() => onUpdate({ ...data, frequency })}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                borderRadius: 18,
+                backgroundColor: isSelected ? colors.accent : colors.thirdary,
+                borderWidth: 1,
+                borderColor: isSelected ? colors.accent : "rgba(255,255,255,0.06)",
+                paddingVertical: 18,
+                paddingHorizontal: 18,
+              }}
+            >
+              <MaterialIcons
+                name={isSelected ? "radio-button-checked" : "radio-button-unchecked"}
+                size={22}
+                color={isSelected ? "#FFFFFF" : colors.textSecondary}
+                style={{ marginRight: 14 }}
+              />
+              <Text style={{ color: colors.textPrimary, fontSize: 18, fontWeight: "600" }}>{frequency} тренировки в неделю</Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
     </View>
   );
@@ -532,7 +561,20 @@ export default function CreateWorkout() {
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background, paddingTop: 20 }}>
       <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100, paddingTop: 20 }}>
         <View style={{ marginBottom: 32 }}>
-          <View style={{ flexDirection: "row", gap: 8, marginBottom: 20 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => (step > 0 ? setStep(step - 1) : router.back())}
+              style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.thirdary, alignItems: "center", justifyContent: "center" }}
+            >
+              <MaterialIcons name="arrow-back-ios-new" size={18} color={colors.textPrimary} />
+            </TouchableOpacity>
+            <Text style={{ color: colors.textSecondary, fontSize: 14, fontWeight: "600" }}>
+              Шаг {step + 1} из {steps.length}
+            </Text>
+          </View>
+
+          <View style={{ flexDirection: "row", gap: 8 }}>
             {steps.map((_: unknown, index: number) => (
               <View
                 key={index}
@@ -549,32 +591,38 @@ export default function CreateWorkout() {
 
         <CurrentScreen data={data} onUpdate={setData} />
 
+        {submitError ? (
+          <View style={{ backgroundColor: "#FF8A8022", padding: 12, borderRadius: 14, marginTop: 8 }}>
+            <Text style={{ color: "#FF8A80", fontSize: 14, textAlign: "center" }}>{submitError}</Text>
+          </View>
+        ) : null}
+
         <TouchableOpacity
           activeOpacity={0.85}
           onPress={handleContinue}
           disabled={isSubmitting}
           style={{
-            marginTop: 32,
+            marginTop: 24,
             height: 56,
             borderRadius: 16,
             backgroundColor: colors.accent,
+            flexDirection: "row",
             justifyContent: "center",
             alignItems: "center",
             opacity: isSubmitting ? 0.7 : 1,
           }}
         >
           {isSubmitting ? (
-            <ActivityIndicator color={colors.textPrimary} />
+            <ActivityIndicator color="#FFFFFF" />
           ) : (
-            <Text style={{ color: colors.textPrimary, fontSize: 18, fontWeight: "600" }}>
-              {isRegisteredUser ? "Сгенерировать план" : isLastStep ? "Получить план" : "Продолжить"}
-            </Text>
+            <>
+              <Text style={{ color: "#FFFFFF", fontSize: 18, fontWeight: "700", marginRight: 6 }}>
+                {isRegisteredUser ? "Сгенерировать план" : isLastStep ? "Получить план" : "Продолжить"}
+              </Text>
+              <MaterialIcons name={isLastStep ? "auto-awesome" : "arrow-forward"} size={20} color="#FFFFFF" />
+            </>
           )}
         </TouchableOpacity>
-
-        {submitError ? (
-          <Text style={{ color: "#FF8A80", fontSize: 14, marginTop: 12, textAlign: "center" }}>{submitError}</Text>
-        ) : null}
       </ScrollView>
     </SafeAreaView>
   );
