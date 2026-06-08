@@ -11,6 +11,7 @@ import {
   type WorkoutExercise,
 } from "@/services/fitness-service";
 import { getCachedWorkouts } from "@/services/workout-cache";
+import { getCachedExerciseById } from "@/services/exercise-cache";
 import {
   clearPendingWorkoutCompletion,
   getStoredUserId,
@@ -195,6 +196,21 @@ export default function TrainingExercise() {
 
   const doneCount = completedSets.filter(Boolean).length;
 
+  const handleOpenInstructions = async () => {
+    if (!currentExercise) return;
+    const cached = await getCachedExerciseById(currentExercise.id);
+    router.push({
+      pathname: "/workout-exercise",
+      params: {
+        name: currentExercise.name,
+        category: currentExercise.muscle ?? "",
+        imageUri: cached?.imageUri ?? currentExercise.imageUri ?? "",
+        description: cached?.description ?? currentExercise.description ?? "",
+        fromTraining: "1",
+      },
+    });
+  };
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background, paddingTop: 35 }}>
       <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
@@ -291,6 +307,27 @@ export default function TrainingExercise() {
               <Text style={{ color: colors.textSecondary, fontSize: 13 }}>{restSeconds} с</Text>
             </View>
           </View>
+
+          {/* Instructions button */}
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={handleOpenInstructions}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              alignSelf: "flex-start",
+              paddingHorizontal: 12,
+              paddingVertical: 7,
+              borderRadius: 10,
+              backgroundColor: `${colors.accent}18`,
+              borderWidth: 1,
+              borderColor: `${colors.accent}33`,
+              marginBottom: 18,
+            }}
+          >
+            <MaterialIcons name="menu-book" size={14} color={colors.accent} style={{ marginRight: 6 }} />
+            <Text style={{ color: colors.accent, fontSize: 13, fontWeight: "600" }}>Как делать</Text>
+          </TouchableOpacity>
 
           {/* Sets */}
           <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>

@@ -50,6 +50,23 @@ export async function searchCachedExercises(
 }
 
 // ---------------------------------------------------------------------------
+// Lookup by ID
+// ---------------------------------------------------------------------------
+
+export async function getCachedExerciseById(id: string): Promise<ExerciseSearchResult | null> {
+  try {
+    const db = await getDb();
+    const row = await db.getFirstAsync<ExerciseRow>(
+      "SELECT * FROM exercises WHERE id = ?",
+      [id],
+    );
+    return row ? rowToResult(row) : null;
+  } catch {
+    return null;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Write
 // ---------------------------------------------------------------------------
 
