@@ -204,21 +204,33 @@ func (s *workoutService) ListExercises(ctx context.Context, query string, muscle
 }
 
 func resolvePreferences(user domain.User, override *domain.TrainingPreferences) domain.TrainingPreferences {
+	split := utils.AutoSplitFromFrequency(user.Frequency)
+	days := utils.DefaultDaysForFrequency(user.Frequency)
+
 	if override != nil {
 		p := *override
 		p.UserID = user.ID
 		if p.Split == "" {
-			p.Split = domain.SplitFullBody
+			p.Split = split
+		}
+		if len(p.DaysOfWeek) == 0 {
+			p.DaysOfWeek = days
 		}
 		return p
 	}
 	if user.Preferences != nil {
-		return *user.Preferences
+		p := *user.Preferences
+		// Always derive split from frequency; ignore stale stored split.
+		p.Split = split
+		if len(p.DaysOfWeek) == 0 {
+			p.DaysOfWeek = days
+		}
+		return p
 	}
 	return domain.TrainingPreferences{
 		UserID:     user.ID,
-		Split:      domain.SplitFullBody,
-		DaysOfWeek: []int{1, 3, 5},
+		Split:      split,
+		DaysOfWeek: days,
 		Remember:   false,
 	}
 }
@@ -371,14 +383,19 @@ func (s *workoutService) GenerateWeekWorkouts(
 		return nil, err
 	}
 
-	prefs := user.Preferences
-	if prefs == nil {
-		prefs = &domain.TrainingPreferences{
-			UserID:     user.ID,
-			Split:      domain.SplitFullBody,
-			DaysOfWeek: []int{1, 3, 5},
-			Remember:   false,
-		}
+	// Split type and session count are driven entirely by frequency.
+	split := utils.AutoSplitFromFrequency(user.Frequency)
+	daysOfWeek := utils.DefaultDaysForFrequency(user.Frequency)
+	// Honour stored day preferences when the count exactly matches frequency.
+	if user.Preferences != nil && len(user.Preferences.DaysOfWeek) == user.Frequency {
+		daysOfWeek = user.Preferences.DaysOfWeek
+	}
+
+	prefs := &domain.TrainingPreferences{
+		UserID:     user.ID,
+		Split:      split,
+		DaysOfWeek: daysOfWeek,
+		Remember:   false,
 	}
 
 	endDate := startDate.AddDate(0, 0, 7)
@@ -397,15 +414,15 @@ func (s *workoutService) GenerateWeekWorkouts(
 
 	var generated []domain.Workout
 
-	for _, dayIndex := range prefs.DaysOfWeek {
-		date := startDate.AddDate(0, 0, dayIndex)
+	for _, dayOffset := range daysOfWeek {
+		date := startDate.AddDate(0, 0, dayOffset)
 		dateStr := date.Format("2006-01-02")
 		if _, exists := existingMap[dateStr]; exists {
 			continue
 		}
 
 		opts := GenerateWorkoutOptions{
-			DayIndex:    &dayIndex,
+			DayIndex:    &dayOffset,
 			Preferences: prefs,
 			PlannedFor:  &date,
 		}

@@ -81,6 +81,38 @@ func NormalizeDaysOfWeek(days []int) []int {
 	return out
 }
 
+// AutoSplitFromFrequency returns the optimal split type for a given weekly
+// training frequency: 2→upper/lower, 3→PPL, 4+→upper/lower.
+func AutoSplitFromFrequency(freq int) domain.SplitType {
+	switch {
+	case freq == 3:
+		return domain.SplitPPL
+	case freq >= 2:
+		return domain.SplitUpperLower
+	default:
+		return domain.SplitFullBody
+	}
+}
+
+// DefaultDaysForFrequency returns day offsets from startDate that evenly
+// space freq training sessions across a 7-day window.
+func DefaultDaysForFrequency(freq int) []int {
+	switch freq {
+	case 1:
+		return []int{1}
+	case 2:
+		return []int{1, 4}
+	case 3:
+		return []int{1, 3, 5}
+	case 4:
+		return []int{1, 2, 4, 5}
+	case 5:
+		return []int{1, 2, 3, 5, 6}
+	default:
+		return []int{1, 3, 5}
+	}
+}
+
 func GetMusclesForSplit(splitPart string) []string {
 	return splitMuscles[splitPart]
 }
