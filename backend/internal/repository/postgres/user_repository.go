@@ -345,7 +345,9 @@ func upsertUserEquipment(ctx context.Context, tx *sql.Tx, userID uuid.UUID, equi
 			return err
 		}
 		if rowsAffected == 0 {
-			return fmt.Errorf("equipment not found: %s", item)
+			// Unknown equipment type — not in the equipment reference table.
+			// Skip silently so unrecognised values don't break registration or profile updates.
+			continue
 		}
 	}
 
