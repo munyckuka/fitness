@@ -3,7 +3,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useState, type ComponentProps } from "react";
 import { ActivityIndicator, KeyboardAvoidingView, Platform, SafeAreaView, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
-import { getUser, getUserWorkouts, generateWorkout } from "@/services/fitness-service";
+import { getUser, getUserWorkouts, generateWeekWorkouts } from "@/services/fitness-service";
 import { loginWithIdentifier } from "@/services/auth-service";
 import { ApiError } from "@/services/api";
 import { CURRENT_WORKOUT_ID_KEY, IS_REGISTERED_KEY, USER_ID_KEY } from "@/services/storage";
@@ -143,12 +143,9 @@ export default function Register() {
       let activeWorkoutId = workouts[0]?.id;
 
       if (!activeWorkoutId) {
-        const generatedWorkout = await generateWorkout(authPayload.user.id, {
-          goal: user.goal,
-          experience: user.experience,
-          equipment: user.equipment,
-        });
-        activeWorkoutId = generatedWorkout.id;
+        const startDate = new Date().toISOString().slice(0, 10);
+        const generated = await generateWeekWorkouts(authPayload.user.id, startDate);
+        activeWorkoutId = generated[0]?.id;
       }
 
       const sessionItems: [string, string][] = [

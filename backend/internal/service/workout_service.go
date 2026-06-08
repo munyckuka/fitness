@@ -438,15 +438,18 @@ func (s *workoutService) GenerateWeekWorkouts(
 			continue
 		}
 
+		d := dayOffset // capture loop variable
+		dt := date
 		opts := GenerateWorkoutOptions{
-			DayIndex:    &dayOffset,
+			DayIndex:    &d,
 			Preferences: prefs,
-			PlannedFor:  &date,
+			PlannedFor:  &dt,
 		}
 
 		result, err := s.GenerateWorkout(ctx, userID, opts)
 		if err != nil {
-			return nil, err
+			// skip this day rather than aborting the whole week
+			continue
 		}
 
 		response = append(response, result.Workout)

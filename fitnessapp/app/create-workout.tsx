@@ -3,7 +3,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { ActivityIndicator, SafeAreaView, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { generateWorkout, getUser, updateUser, type UserProfile } from "@/services/fitness-service";
+import { generateWeekWorkouts, getUser, updateUser, type UserProfile } from "@/services/fitness-service";
 import { mapEquipmentToBackend, mapGoalToBackend as mapGoalToBackendAuth, mapLevelToBackend as mapLevelToBackendAuth, registerWithProfile } from "@/services/auth-service";
 import { CURRENT_WORKOUT_ID_KEY, IS_REGISTERED_KEY, USER_ID_KEY } from "@/services/storage";
 import { colors } from "./theme";
@@ -460,21 +460,18 @@ export default function CreateWorkout() {
 
       try {
         const updatedUser = await updateUser(registeredUserId, buildRegisteredProfilePayload(data, registeredUserProfile));
-        const workout = await generateWorkout(
-          registeredUserId,
-          {
-            goal: updatedUser.goal,
-            experience: updatedUser.experience,
-            equipment: updatedUser.equipment,
-          },
-        );
 
         setRegisteredUserProfile(updatedUser);
+
+        const startDate = new Date().toISOString().slice(0, 10);
+        const workouts = await generateWeekWorkouts(registeredUserId, startDate);
+        const firstWorkout = workouts[0];
+        if (!firstWorkout) throw new Error("Не удалось создать план тренировки");
 
         await AsyncStorage.multiSet([
           [IS_REGISTERED_KEY, "true"],
           [USER_ID_KEY, registeredUserId],
-          [CURRENT_WORKOUT_ID_KEY, workout.id],
+          [CURRENT_WORKOUT_ID_KEY, firstWorkout.id],
         ]);
 
         router.replace("/");
@@ -529,16 +526,15 @@ export default function CreateWorkout() {
         throw new Error("Сервер не вернул идентификатор пользователя.");
       }
 
-      const workout = await generateWorkout(user.id, {
-        goal: user.goal,
-        experience: user.experience,
-        equipment: user.equipment,
-      });
+      const startDate = new Date().toISOString().slice(0, 10);
+      const workouts = await generateWeekWorkouts(user.id, startDate);
+      const firstWorkout = workouts[0];
+      if (!firstWorkout) throw new Error("Не удалось создать план тренировки");
 
       await AsyncStorage.multiSet([
         [IS_REGISTERED_KEY, "true"],
         [USER_ID_KEY, user.id],
-        [CURRENT_WORKOUT_ID_KEY, workout.id],
+        [CURRENT_WORKOUT_ID_KEY, firstWorkout.id],
       ]);
 
       router.replace("/");
