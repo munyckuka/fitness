@@ -3,18 +3,17 @@ package postgres
 import (
 	"database/sql"
 
-	_ "github.com/lib/pq"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/stdlib"
 )
 
-type DB struct {
-	Conn *sql.DB
-}
-
-func NewDB(connStr string) (*DB, error) {
-	db, err := sql.Open("postgres", connStr)
+func NewDB(connStr string) (*sql.DB, error) {
+	config, err := pgx.ParseConfig(connStr)
 	if err != nil {
 		return nil, err
 	}
-
-	return &DB{Conn: db}, nil
+	// Simple protocol avoids prepared statements entirely, which is required
+	// when running behind PgBouncer in transaction mode (e.g. Neon pooler).
+	config.DefaultQueryExecMode = pgx.QueryExecModeSimpleProtocol
+	return stdlib.OpenDB(*config), nil
 }

@@ -6,7 +6,6 @@ import (
 	"backend/internal/realtime"
 	"backend/internal/repository/postgres"
 	"backend/internal/service"
-	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
@@ -31,9 +30,9 @@ func main() {
 		connStr = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", user, password, host, port, name)
 	}
 
-	db, err := sql.Open("postgres", connStr)
+	db, err := postgres.NewDB(connStr)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("failed to open database: %v", err)
 	}
 
 	db.SetConnMaxLifetime(5 * time.Minute)
