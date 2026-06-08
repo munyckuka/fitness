@@ -340,7 +340,6 @@ export default function TrainingExercise() {
                   </Text>
                 </View>
 
-                <Text style={{ color: colors.textSecondary, fontSize: 14 }}>{isDone ? "Завершён" : "Не выполнен"}</Text>
               </TouchableOpacity>
 
               {isDone ? (

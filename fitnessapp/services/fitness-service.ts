@@ -116,7 +116,7 @@ export async function updateUser(userId: string, input: UpdateUserInput) {
 }
 
 export async function generateWorkout(userId: string, user?: Pick<UserProfile, "goal" | "experience" | "equipment">) {
-  const payload = await requestWithAuth<BackendWorkout>(
+  const raw = await requestWithAuth<{ workout: BackendWorkout; warning?: string; recoveryHint?: string }>(
     "/workouts/generate",
     {
       method: "POST",
@@ -125,6 +125,8 @@ export async function generateWorkout(userId: string, user?: Pick<UserProfile, "
     userId,
   );
 
+  // Backend wraps the workout in { workout: {...}, warning: "...", recoveryHint: "..." }
+  const payload: BackendWorkout = raw.workout ?? (raw as unknown as BackendWorkout);
   const workout = normalizeWorkout(payload, user);
 
   // If user has no equipment (Домашний) filter out exercises that require external equipment.
@@ -218,7 +220,7 @@ function normalizeUser(payload: BackendUser): UserProfile {
     login: payload.login,
     goal: localizeGoal(payload.fitnessGoal),
     experience: localizeLevel(payload.fitnessLevel),
-    equipment: equipment.map(localizeEquipment).join(", "),
+    equipment: deriveEquipmentLabel(equipment),
     equipmentList: equipment.map(localizeEquipment),
     age: payload.age,
     height: payload.height,
@@ -427,10 +429,9 @@ function localizeLevel(level: string) {
 function localizeEquipment(equipment: string) {
   switch (equipment) {
     case "":
-      return "Домашний";
-    case "dumbbell":
     case "bodyweight":
       return "Домашний";
+    case "dumbbell":
     case "dumbbells":
       return "Гантели";
     case "pullup_bar":
@@ -438,10 +439,35 @@ function localizeEquipment(equipment: string) {
       return "Спортивная площадка";
     case "barbell":
     case "gym":
+    case "machine":
       return "Тренажерный зал";
+    case "cable":
+      return "Кроссовер/Кабель";
+    case "kettlebell":
+      return "Кеттлбелл";
+    case "band":
+      return "Резинка";
+    case "medicine ball":
+      return "Мяч";
+    case "none":
+      return "Нет";
     default:
       return equipment;
   }
+}
+
+// Derives a single display label from an array of backend equipment values.
+// Priority mirrors the UI options in create-workout.tsx.
+function deriveEquipmentLabel(rawList: string[]): string {
+  if (rawList.includes("barbell") || rawList.includes("machine")) return "Тренажерный зал";
+  if (rawList.includes("kettlebell")) return "Кеттлбелл";
+  if (rawList.includes("cable")) return "Кроссовер/Кабель";
+  if (rawList.includes("dumbbell")) return "Гантели";
+  if (rawList.includes("pullup_bar")) return "Спортивная площадка";
+  if (rawList.includes("band")) return "Резинка";
+  if (rawList.includes("medicine ball")) return "Мяч";
+  if (rawList.includes("none")) return "Нет";
+  return "Домашний";
 }
 
 function localizeMuscleGroup(muscleGroup: string) {
@@ -449,12 +475,15 @@ function localizeMuscleGroup(muscleGroup: string) {
     case "chest":
       return "Грудь";
     case "shoulder":
+    case "shoulders":
       return "Плечи";
     case "tricep":
+    case "triceps":
       return "Трицепс";
     case "back":
       return "Спина";
     case "bicep":
+    case "biceps":
       return "Бицепс";
     case "quadriceps":
       return "Квадрицепс";
@@ -464,6 +493,12 @@ function localizeMuscleGroup(muscleGroup: string) {
       return "Икры";
     case "glutes":
       return "Ягодицы";
+    case "core":
+      return "Кор";
+    case "legs":
+      return "Ноги";
+    case "full body":
+      return "Всё тело";
     default:
       return "Основная группа";
   }
