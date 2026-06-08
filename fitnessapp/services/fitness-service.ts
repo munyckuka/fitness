@@ -236,7 +236,7 @@ function normalizeWorkout(payload: BackendWorkout, user?: Pick<UserProfile, "goa
 
   return {
     id: payload.id,
-    title: buildWorkoutTitle(user?.goal),
+    title: buildWorkoutTitle(payload.splitPart, user?.goal),
     goal: user?.goal ?? "Персональный план",
     equipment: user?.equipment ?? "Индивидуальный подбор",
     level: user?.experience ?? "По вашему уровню",
@@ -354,6 +354,8 @@ type BackendWorkoutExercise = {
 type BackendWorkout = {
   id: string;
   userId: string;
+  splitPart?: string;
+  dayIndex?: number;
   exercises: BackendWorkoutExercise[] | null;
 };
 
@@ -392,16 +394,26 @@ async function requestWithAuth<T>(path: string, options: RequestInit, legacyUser
   }
 }
 
-function buildWorkoutTitle(goal?: string) {
-  switch (goal) {
-    case "Сила":
-      return "Силовая тренировка";
-    case "Рост мышц":
-      return "Тренировка на рост мышц";
-    case "Похудение":
-      return "Жиросжигающая тренировка";
+function buildWorkoutTitle(splitPart?: string, goal?: string): string {
+  switch (splitPart) {
+    case "push":
+      return "День жима";
+    case "pull":
+      return "День тяг";
+    case "legs":
+      return "День ног";
+    case "upper":
+      return "Тренировка верха";
+    case "lower":
+      return "Тренировка низа";
     default:
-      return "Персональная тренировка";
+      switch (goal) {
+        case "Сила":          return "Силовая тренировка";
+        case "Рост мышц":     return "Тренировка на рост мышц";
+        case "Похудение":     return "Жиросжигающая тренировка";
+        case "Выносливость":  return "Тренировка на выносливость";
+        default:              return "Персональная тренировка";
+      }
   }
 }
 
