@@ -149,7 +149,10 @@ export async function generateWorkout(userId: string, user?: Pick<UserProfile, "
 }
 
 export async function getUserWorkouts(userId: string) {
-  const [payload, user] = await Promise.all([apiRequest<BackendWorkout[]>(`/workouts/user/${userId}`), getUser(userId)]);
+  const [payload, user] = await Promise.all([
+    apiRequest<BackendWorkout[]>(`/workouts/user/${userId}`),
+    getUser(userId).catch(() => undefined),
+  ]);
   const collection = Array.isArray(payload) ? payload : [];
 
   const workouts = collection.map((item) => normalizeWorkout(item, user));
