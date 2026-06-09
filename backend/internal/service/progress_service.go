@@ -3,7 +3,6 @@ package service
 import (
 	"backend/internal/utils"
 	"context"
-	"sort"
 	"time"
 
 	"backend/internal/domain"
@@ -42,7 +41,8 @@ func (s *progressService) GetProgress(
 	}
 	weightByMonth := map[string]*monthEntry{}
 
-	threeMonthsAgo := time.Now().AddDate(0, -3, 0)
+	now := time.Now()
+	threeMonthsAgo := now.AddDate(0, -3, 0)
 
 	for _, log := range logs {
 		loggedAt := time.Unix(log.Timestamp, 0)
@@ -66,27 +66,26 @@ func (s *progressService) GetProgress(
 		}
 	}
 
-	if len(weightByMonth) == 0 {
-		progress.WeightHistory = defaultWeightHistory()
-		return progress, nil
+	// Always return exactly 3 months (oldest → newest), filling 0 for months with no data.
+	type targetMonth struct {
+		key   string
+		label string
+	}
+	targets := []targetMonth{
+		{now.AddDate(0, -2, 0).Format("2006-01"), now.AddDate(0, -2, 0).Format("Jan")},
+		{now.AddDate(0, -1, 0).Format("2006-01"), now.AddDate(0, -1, 0).Format("Jan")},
+		{now.Format("2006-01"), now.Format("Jan")},
 	}
 
-	// Sort keys ascending so months display oldest → newest.
-	keys := make([]string, 0, len(weightByMonth))
-	for k := range weightByMonth {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	if len(keys) > 3 {
-		keys = keys[len(keys)-3:]
-	}
-
-	progress.WeightHistory = make([]domain.WeightHistoryPoint, 0, len(keys))
-	for _, k := range keys {
-		e := weightByMonth[k]
+	progress.WeightHistory = make([]domain.WeightHistoryPoint, 0, 3)
+	for _, t := range targets {
+		value := 0.0
+		if e, exists := weightByMonth[t.key]; exists {
+			value = e.maxWeight
+		}
 		progress.WeightHistory = append(progress.WeightHistory, domain.WeightHistoryPoint{
-			Label: e.label,
-			Value: e.maxWeight,
+			Label: t.label,
+			Value: value,
 		})
 	}
 
@@ -129,11 +128,3 @@ func (s *progressService) UpdateAfterWorkout(
 	return s.repo.Update(ctx, progress)
 }
 
-func defaultWeightHistory() []domain.WeightHistoryPoint {
-	now := time.Now()
-	return []domain.WeightHistoryPoint{
-		{Label: now.AddDate(0, -2, 0).Format("Jan"), Value: 0},
-		{Label: now.AddDate(0, -1, 0).Format("Jan"), Value: 0},
-		{Label: now.Format("Jan"), Value: 0},
-	}
-}
