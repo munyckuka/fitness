@@ -11,7 +11,7 @@ import {
   type WorkoutSummary,
   type WorkoutExercise,
 } from "@/services/fitness-service";
-import { getCachedWorkouts } from "@/services/workout-cache";
+import { getCachedWorkouts, cacheWorkouts } from "@/services/workout-cache";
 import { getCachedExerciseById } from "@/services/exercise-cache";
 import {
   clearPendingWorkoutCompletion,
@@ -92,6 +92,9 @@ export default function TrainingExercise() {
         // Refresh from API in background; update state only if workout changed.
         try {
           const fresh = await getUserWorkouts(userId);
+          // Cache fresh data (this also populates the exercises table with
+          // photoPath/description so getCachedExerciseById works during training).
+          void cacheWorkouts(userId, fresh);
           const freshWorkout = fresh.find((w) => w.id === workoutId) ?? fresh[0] ?? null;
           if (freshWorkout) await applyWorkout(freshWorkout);
           else if (!cachedWorkout && isMounted) setError("Тренировка не найдена. Сначала получите план.");

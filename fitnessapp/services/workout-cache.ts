@@ -1,5 +1,6 @@
 import { getDb } from "@/services/database";
 import { getUserWorkouts, type WorkoutSummary, type WorkoutExercise } from "@/services/fitness-service";
+import { cacheExercises } from "@/services/exercise-cache";
 
 type WorkoutRow = {
   id: string;
@@ -93,6 +94,24 @@ export async function cacheWorkouts(userId: string, workouts: WorkoutSummary[]):
           ]
         );
       }
+    }
+
+    // Populate the exercises table so getCachedExerciseById works during
+    // training even when the library page has never been visited.
+    const toCache = workouts
+      .flatMap((w) => w.exercises)
+      .filter((ex) => ex.imageUri || ex.description)
+      .map((ex) => ({
+        id: ex.id,
+        name: ex.name,
+        muscleGroup: ex.muscle ?? "",
+        requiredEquipment: ex.requiredEquipment,
+        difficultyLevel: ex.difficultyLevel != null ? String(ex.difficultyLevel) : undefined,
+        description: ex.description,
+        imageUri: ex.imageUri,
+      }));
+    if (toCache.length > 0) {
+      await cacheExercises(toCache);
     }
   } catch {
     // Cache write failures are non-fatal.
