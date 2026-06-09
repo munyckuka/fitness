@@ -56,6 +56,8 @@ type WorkoutExerciseDTO struct {
 	ExerciseID  string  `json:"exerciseId"`
 	Name        string  `json:"name"`
 	MuscleGroup string  `json:"muscleGroup"`
+	PhotoPath   string  `json:"photoPath,omitempty"`
+	Description string  `json:"description,omitempty"`
 	Sets        int     `json:"sets"`
 	Reps        int     `json:"reps"`
 	Rest        int     `json:"rest"`

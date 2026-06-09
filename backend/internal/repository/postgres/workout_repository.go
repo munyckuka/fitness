@@ -202,6 +202,8 @@ func (r *WorkoutRepository) getWorkouts(ctx context.Context, whereClause string,
 		       we.exercise_id,
 		       e.name,
 		       e.muscle_group,
+		       COALESCE(e.photo_path, ''),
+		       COALESCE(e.description, ''),
 		       we.sets,
 		       we.reps,
 		       we.rest,
@@ -235,6 +237,8 @@ func (r *WorkoutRepository) getWorkouts(ctx context.Context, whereClause string,
 			exerciseID  sql.NullString
 			name        sql.NullString
 			muscleGroup sql.NullString
+			photoPath   string
+			description string
 			sets        sql.NullInt32
 			reps        sql.NullInt32
 			rest        sql.NullInt32
@@ -243,7 +247,7 @@ func (r *WorkoutRepository) getWorkouts(ctx context.Context, whereClause string,
 		)
 
 		if err := rows.Scan(&workoutID, &userID, &status, &createdAt, &dayIndex, &splitPart, &plannedFor,
-			&exerciseID, &name, &muscleGroup, &sets, &reps, &rest, &weight, &cycle); err != nil {
+			&exerciseID, &name, &muscleGroup, &photoPath, &description, &sets, &reps, &rest, &weight, &cycle); err != nil {
 			return nil, err
 		}
 
@@ -273,6 +277,8 @@ func (r *WorkoutRepository) getWorkouts(ctx context.Context, whereClause string,
 				ExerciseID:  parsedExerciseID,
 				Name:        name.String,
 				MuscleGroup: muscleGroup.String,
+				PhotoPath:   photoPath,
+				Description: description,
 				Sets:        int(sets.Int32),
 				Reps:        int(reps.Int32),
 				Rest:        int(rest.Int32),

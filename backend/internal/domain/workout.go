@@ -30,6 +30,8 @@ type WorkoutExercise struct {
 	ExerciseID  uuid.UUID
 	Name        string
 	MuscleGroup string
+	PhotoPath   string
+	Description string
 	Sets        int
 	Reps        int
 	Rest        int

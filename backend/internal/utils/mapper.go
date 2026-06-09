@@ -54,6 +54,8 @@ func MapWorkoutToDTO(w domain.Workout) dto.WorkoutResponse {
 			ExerciseID:  e.ExerciseID.String(),
 			Name:        e.Name,
 			MuscleGroup: e.MuscleGroup,
+			PhotoPath:   e.PhotoPath,
+			Description: e.Description,
 			Sets:        e.Sets,
 			Reps:        e.Reps,
 			Rest:        e.Rest,
