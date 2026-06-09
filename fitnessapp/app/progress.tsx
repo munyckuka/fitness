@@ -14,33 +14,6 @@ function getMonthKey(date: Date) {
   return `${year}-${month}`;
 }
 
-const MONTH_ORDER: Record<string, number> = {
-  Янв: 0,
-  Фев: 1,
-  Мар: 2,
-  Апр: 3,
-  Май: 4,
-  Июн: 5,
-  Июл: 6,
-  Авг: 7,
-  Сен: 8,
-  Окт: 9,
-  Ноя: 10,
-  Дек: 11,
-  Jan: 0,
-  Feb: 1,
-  Mar: 2,
-  Apr: 3,
-  May: 4,
-  Jun: 5,
-  Jul: 6,
-  Aug: 7,
-  Sep: 8,
-  Oct: 9,
-  Nov: 10,
-  Dec: 11,
-};
-
 export default function Progress() {
   const router = useRouter();
   const [progress, setProgress] = useState<ProgressData>({ workoutDates: [], weightHistory: [] });
@@ -50,11 +23,8 @@ export default function Progress() {
   const currentMonthKey = getMonthKey(today);
   const workoutDays = progress.workoutDates.filter((date: string) => date.startsWith(currentMonthKey)).map((date: string) => Number(date.slice(-2)));
 
-  // Deduplicate and get max value per month
-  const uniqueWeightHistory = Array.from(new Map(progress.weightHistory.map((item: { label: string; value: number }) => [item.label, item])).values()).sort(
-    (left: { label: string; value: number }, right: { label: string; value: number }) => (MONTH_ORDER[left.label] ?? Number.MAX_SAFE_INTEGER) - (MONTH_ORDER[right.label] ?? Number.MAX_SAFE_INTEGER),
-  );
-  
+  // Backend returns months in ascending chronological order — preserve that order.
+  const uniqueWeightHistory = Array.from(new Map(progress.weightHistory.map((item: { label: string; value: number }) => [item.label, item])).values());
   const maxWeightValue = Math.max(...uniqueWeightHistory.map((item: { label: string; value: number }) => item.value), 1);
 
   useEffect(() => {

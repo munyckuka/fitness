@@ -3,6 +3,7 @@ package service
 import (
 	"backend/internal/utils"
 	"context"
+	"sort"
 	"time"
 
 	"backend/internal/domain"
@@ -33,42 +34,59 @@ func (s *progressService) GetProgress(
 	}
 
 	progress.WorkoutDates = make([]string, 0, len(logs))
-	weightByMonth := map[string]float64{}
-	monthOrder := make([]string, 0)
+
+	// Use "YYYY-MM" key to avoid year collisions; label is the 3-letter abbreviation.
+	type monthEntry struct {
+		label     string
+		maxWeight float64
+	}
+	weightByMonth := map[string]*monthEntry{}
+
+	threeMonthsAgo := time.Now().AddDate(0, -3, 0)
 
 	for _, log := range logs {
 		loggedAt := time.Unix(log.Timestamp, 0)
 		progress.WorkoutDates = append(progress.WorkoutDates, loggedAt.Format("2006-01-02"))
 
-		monthKey := loggedAt.Format("Jan")
-		if _, exists := weightByMonth[monthKey]; !exists {
-			monthOrder = append(monthOrder, monthKey)
+		if loggedAt.Before(threeMonthsAgo) {
+			continue
+		}
+
+		yearMonthKey := loggedAt.Format("2006-01")
+		if _, exists := weightByMonth[yearMonthKey]; !exists {
+			weightByMonth[yearMonthKey] = &monthEntry{label: loggedAt.Format("Jan")}
 		}
 
 		for _, exercise := range log.Exercises {
 			for _, set := range exercise.Sets {
-				if float64(set.Weight) > weightByMonth[monthKey] {
-					weightByMonth[monthKey] = float64(set.Weight)
+				if w := float64(set.Weight); w > weightByMonth[yearMonthKey].maxWeight {
+					weightByMonth[yearMonthKey].maxWeight = w
 				}
 			}
 		}
 	}
 
-	if len(monthOrder) == 0 {
+	if len(weightByMonth) == 0 {
 		progress.WeightHistory = defaultWeightHistory()
 		return progress, nil
 	}
 
-	start := 0
-	if len(monthOrder) > 3 {
-		start = len(monthOrder) - 3
+	// Sort keys ascending so months display oldest → newest.
+	keys := make([]string, 0, len(weightByMonth))
+	for k := range weightByMonth {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	if len(keys) > 3 {
+		keys = keys[len(keys)-3:]
 	}
 
-	progress.WeightHistory = make([]domain.WeightHistoryPoint, 0, len(monthOrder)-start)
-	for _, monthKey := range monthOrder[start:] {
+	progress.WeightHistory = make([]domain.WeightHistoryPoint, 0, len(keys))
+	for _, k := range keys {
+		e := weightByMonth[k]
 		progress.WeightHistory = append(progress.WeightHistory, domain.WeightHistoryPoint{
-			Label: monthKey,
-			Value: weightByMonth[monthKey],
+			Label: e.label,
+			Value: e.maxWeight,
 		})
 	}
 
