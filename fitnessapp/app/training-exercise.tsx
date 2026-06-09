@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { ActivityIndicator, SafeAreaView, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { Image } from "expo-image";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { colors } from "./theme";
@@ -43,6 +44,7 @@ export default function TrainingExercise() {
   const restSeconds = currentExercise?.restSeconds ?? 180;
   const weightLabel = typeof currentExercise?.weight === "number" ? `${currentExercise.weight} кг` : null;
 
+  const [exerciseImageUri, setExerciseImageUri] = useState<string | null>(null);
   const [completedSets, setCompletedSets] = useState<boolean[]>(Array.from({ length: setCount }, () => false));
   const [completedSetsByExercise, setCompletedSetsByExercise] = useState<Record<string, boolean[]>>({});
   const [setQualitiesByExercise, setSetQualitiesByExercise] = useState<Record<string, (number | undefined)[]>>({});
@@ -106,6 +108,15 @@ export default function TrainingExercise() {
     void loadWorkout();
     return () => { isMounted = false; };
   }, [params.workoutId]);
+
+  useEffect(() => {
+    if (!currentExercise?.id) { setExerciseImageUri(null); return; }
+    const uri = currentExercise.imageUri ?? null;
+    if (uri) { setExerciseImageUri(uri); return; }
+    getCachedExerciseById(currentExercise.id)
+      .then((ex) => setExerciseImageUri(ex?.imageUri ?? null))
+      .catch(() => setExerciseImageUri(null));
+  }, [currentExercise?.id]);
 
   useEffect(() => {
     if (!currentExercise) {
@@ -269,16 +280,25 @@ export default function TrainingExercise() {
           <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 18 }}>
             <View
               style={{
-                width: 52,
-                height: 52,
+                width: 64,
+                height: 64,
                 borderRadius: 16,
+                overflow: "hidden",
                 backgroundColor: `${colors.accent}22`,
                 alignItems: "center",
                 justifyContent: "center",
                 marginRight: 14,
               }}
             >
-              <Text style={{ color: colors.accent, fontSize: 20, fontWeight: "700" }}>{currentIndex + 1}</Text>
+              {exerciseImageUri ? (
+                <Image
+                  source={{ uri: exerciseImageUri }}
+                  style={{ width: "100%", height: "100%" }}
+                  contentFit="cover"
+                />
+              ) : (
+                <MaterialIcons name="fitness-center" size={28} color={colors.accent} />
+              )}
             </View>
             <View style={{ flex: 1 }}>
               <Text style={{ color: colors.textPrimary, fontSize: 18, fontWeight: "700" }}>
